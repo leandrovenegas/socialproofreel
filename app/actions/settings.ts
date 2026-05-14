@@ -12,30 +12,28 @@ export async function updateSettingsAction(
   formData: FormData
 ) {
   const id = formData.get('id') as string;
-  const primary_color = formData.get('primary_color') as string;
-  const font_family = formData.get('font_family') as string;
-  const blur_level = Number(formData.get('blur_level'));
+  const configString = formData.get('config') as string;
 
-  // Simple type validation
   if (!id || typeof id !== 'string') {
     return { success: false, error: 'Invalid ID' };
   }
-  if (!primary_color || !/^#([0-9A-F]{3}){1,2}$/i.test(primary_color)) {
-    return { success: false, error: 'Invalid color format' };
-  }
-  if (!font_family || typeof font_family !== 'string') {
-    return { success: false, error: 'Invalid font family' };
-  }
-  if (isNaN(blur_level) || blur_level < 0 || blur_level > 20) {
-    return { success: false, error: 'Invalid blur level (must be 0-20)' };
+
+  let config;
+  try {
+    config = JSON.parse(configString);
+  } catch (e) {
+    return { success: false, error: 'Invalid config format' };
   }
 
+  // Update both the JSON config and the legacy fields for backward compatibility
   const { data, error } = await supabase
     .from("settings")
     .update({
-      primary_color,
-      font_family,
-      blur_level,
+      config,
+      // Keep legacy fields in sync
+      primary_color: config.colors.primary,
+      font_family: config.typography.family,
+      blur_level: config.effects.blur,
     })
     .eq("id", id)
     .select()
