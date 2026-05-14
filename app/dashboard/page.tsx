@@ -13,6 +13,15 @@ export default function DashboardPage() {
         {/* Actions / Navigation */}
         <div className="flex gap-3">
           <Link 
+            href="/dashboard/leads"
+            className="inline-flex items-center justify-center px-5 py-2.5 bg-[#020617] text-white border border-white/10 rounded-lg hover:bg-slate-900 transition-colors shadow-sm font-medium"
+          >
+            <svg className="w-4 h-4 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Leads
+          </Link>
+          <Link 
             href="/dashboard/settings"
             className="inline-flex items-center justify-center px-5 py-2.5 bg-[#020617] text-white border border-white/10 rounded-lg hover:bg-slate-900 transition-colors shadow-sm font-medium"
           >

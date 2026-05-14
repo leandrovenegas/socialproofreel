@@ -4,6 +4,8 @@ export interface Lead {
   name: string;
   email: string;
   company?: string;
+  testimonial?: string;
+  avatar_url?: string;
 }
 
 export interface Settings {

@@ -23,15 +23,29 @@ export default function QueueMonitor() {
 
     fetchQueue();
 
-    // Optional: Realtime subscription could be added here
     const channel = supabase
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'video_queue' },
+        { event: 'INSERT', schema: 'public', table: 'video_queue' },
         (payload) => {
-          // Simplistic reload on any change
-          fetchQueue();
+          setQueue((current) => [payload.new as VideoQueue, ...current]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'video_queue' },
+        (payload) => {
+          setQueue((current) =>
+            current.map((item) => (item.id === payload.new.id ? (payload.new as VideoQueue) : item))
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'video_queue' },
+        (payload) => {
+          setQueue((current) => current.filter((item) => item.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -71,7 +85,7 @@ export default function QueueMonitor() {
               <StatusBadge status={item.status} />
             </div>
             <p className="text-sm text-slate-400">
-              Lead ID: {item.lead_id.slice(0, 8)} • {new Date(item.created_at).toLocaleString()}
+              Lead ID: {item.lead_id?.slice(0, 8) || 'N/A'} • {new Date(item.created_at).toLocaleString()}
             </p>
           </div>
 
