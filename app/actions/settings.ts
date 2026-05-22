@@ -26,14 +26,15 @@ export async function updateSettingsAction(
   }
 
   // Update both the JSON config and the legacy fields for backward compatibility
+  // The frontend now sends the flat backend format: { primary_color, blur_level, font_family, layout }
   const { data, error } = await supabase
     .from("settings")
     .update({
       config,
-      // Keep legacy fields in sync
-      primary_color: config.colors.primary,
-      font_family: config.typography.family,
-      blur_level: config.effects.blur,
+      // Keep legacy fields in sync using the flat backend format
+      primary_color: config.primary_color || config.colors?.primary,
+      font_family: config.font_family || config.typography?.family,
+      blur_level: config.blur_level ?? config.effects?.blur,
     })
     .eq("id", id)
     .select()

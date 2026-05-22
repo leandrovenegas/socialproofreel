@@ -12,12 +12,20 @@ export default function EditorSidebar({ settingsId }: { settingsId: string }) {
   const handleSave = () => {
     setSaveStatus('saving');
     startTransition(async () => {
-      // Pack the config into FormData as a JSON string
       const formData = new FormData();
       formData.append('id', settingsId);
-      formData.append('config', JSON.stringify(config));
       
-      // We'll need to update the server action to handle this new structure
+      // Transformar el estado del Frontend al formato exacto que espera el Backend Worker
+      const backendConfig = {
+        primary_color: config.colors.primary,
+        blur_level: config.effects.blur,
+        font_family: config.typography.family,
+        // Capitalizamos la primera letra para que coincida (ej: "Center", "Top", "Bottom")
+        layout: config.layout.alignment.charAt(0).toUpperCase() + config.layout.alignment.slice(1)
+      };
+
+      formData.append('config', JSON.stringify(backendConfig));
+      
       const result = await updateSettingsAction(null, formData);
       
       if (result.success) {

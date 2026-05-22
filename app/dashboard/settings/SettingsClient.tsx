@@ -10,27 +10,53 @@ interface SettingsClientProps {
 }
 
 export default function SettingsClient({ initialSettings }: SettingsClientProps) {
-  // Convert old flat settings to the new TemplateConfig structure if needed
-  // or use the stored config if it exists
-  const initialConfig: TemplateConfig = initialSettings.config || {
-    typography: {
-      family: initialSettings.font_family || "'Inter', sans-serif",
-      size: 24,
-      weight: 'bold',
-    },
-    colors: {
-      primary: initialSettings.primary_color || '#3B82F6',
-      secondary: '#1E293B',
-      overlay_opacity: 0.4,
-    },
-    layout: {
-      alignment: 'bottom',
-    },
-    effects: {
-      blur: initialSettings.blur_level || 8,
-      overlay_darkness: 0.6,
-    },
-  };
+  // The config stored in Supabase may be in the flat backend format:
+  // { primary_color, blur_level, font_family, layout }
+  // We need to reconstruct the nested TemplateConfig for the editor UI.
+  const storedConfig = initialSettings.config as Record<string, any> | undefined;
+
+  // Detect if config is in flat backend format (has primary_color key)
+  const isFlat = storedConfig && 'primary_color' in storedConfig;
+
+  const initialConfig: TemplateConfig = isFlat
+    ? {
+        typography: {
+          family: storedConfig.font_family || "'Inter', sans-serif",
+          size: 24,
+          weight: 'bold',
+        },
+        colors: {
+          primary: storedConfig.primary_color || '#3B82F6',
+          secondary: '#1E293B',
+          overlay_opacity: 0.4,
+        },
+        layout: {
+          alignment: (storedConfig.layout?.toLowerCase() as 'top' | 'center' | 'bottom') || 'bottom',
+        },
+        effects: {
+          blur: storedConfig.blur_level ?? 8,
+          overlay_darkness: 0.6,
+        },
+      }
+    : (storedConfig as TemplateConfig) || {
+        typography: {
+          family: initialSettings.font_family || "'Inter', sans-serif",
+          size: 24,
+          weight: 'bold',
+        },
+        colors: {
+          primary: initialSettings.primary_color || '#3B82F6',
+          secondary: '#1E293B',
+          overlay_opacity: 0.4,
+        },
+        layout: {
+          alignment: 'bottom',
+        },
+        effects: {
+          blur: initialSettings.blur_level || 8,
+          overlay_darkness: 0.6,
+        },
+      };
 
   return (
     <TemplateProvider initialConfig={initialConfig}>
