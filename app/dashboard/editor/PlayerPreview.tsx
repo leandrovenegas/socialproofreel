@@ -19,6 +19,7 @@ const sampleMetadata = {
 export default function PlayerPreview({ config }: PlayerPreviewProps) {
   return (
     <Player
+      key={JSON.stringify(config)}
       component={VideoTemplate}
       inputProps={{ config, metadata: sampleMetadata }}
       durationInFrames={150}
