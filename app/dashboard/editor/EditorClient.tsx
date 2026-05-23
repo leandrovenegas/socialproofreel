@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase/client';
 import type { ComponentItem, VideoTemplateConfig, EffectsConfig, BusinessNameConfig } from '@/components/remotion/VideoTemplate';
@@ -53,7 +53,7 @@ export default function EditorClient() {
     effects: DEFAULT_EFFECTS,
   });
 
-useEffect(() => {
+  useEffect(() => {
   const loadConfig = async () => {
     const { data, error } = await supabase
       .from('settings')
