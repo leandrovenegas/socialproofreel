@@ -1,5 +1,4 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
 import React, { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase/client';
