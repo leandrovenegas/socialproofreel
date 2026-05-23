@@ -1,5 +1,5 @@
 'use client';
-
+import React, { useState, useRef, useEffect } from 'react';
 import React, { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase/client';
@@ -53,6 +53,21 @@ export default function EditorClient() {
     business_name: DEFAULT_BUSINESS,
     effects: DEFAULT_EFFECTS,
   });
+
+useEffect(() => {
+  const loadConfig = async () => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('config')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (!error && data?.config) {
+      setConfig(data.config as VideoTemplateConfig);
+    }
+  };
+  loadConfig();
+}, []);
 
   const [templateName, setTemplateName] = useState('Plantilla Google Reviews');
   const [isSaving, setIsSaving] = useState(false);
