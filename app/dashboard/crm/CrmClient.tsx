@@ -65,6 +65,7 @@ export default function CrmClient({
   const [isPending, startTransition] = useTransition();
   const [leads, setLeads] = useState<RawLeadItem[]>(initialLeads);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [filterVideo, setFilterVideo] = useState<'all' | 'ready' | 'pending'>('all');
 
   useEffect(() => {
     setLeads(initialLeads);
@@ -166,11 +167,21 @@ export default function CrmClient({
     'Cerrado',
   ];
 
+  // Filter leads dynamically on client side
+  const filteredLeads = leads.filter((lead) => {
+    const { steps } = getPipelineStatus(lead);
+    const videoReady = steps[0];
+
+    if (filterVideo === 'ready') return videoReady;
+    if (filterVideo === 'pending') return !videoReady;
+    return true;
+  });
+
   return (
     <div style={{ padding: '24px 40px', color: '#e8eaed', background: '#121212', minHeight: '100vh', fontFamily: "'Roboto', sans-serif" }}>
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500 }}>CRM de Leads</h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9aa0a6' }}>
@@ -207,20 +218,35 @@ export default function CrmClient({
       </div>
 
       {/* FILTER BAR */}
-      <div style={{ display: 'flex', gap: '12px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '12px', padding: '14px', marginBottom: '20px', alignItems: 'center' }}>
-        <span style={{ fontSize: '13px', fontWeight: 500, color: '#9aa0a6' }}>Filtrar por Rubro:</span>
-        <select
-          value={currentRubro}
-          onChange={(e) => navigate({ rubro: e.target.value, page: 1 })}
-          style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '220px' }}
-        >
-          <option value="all">Todos los Rubros</option>
-          {rubros.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+      <div style={{ display: 'flex', gap: '20px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '12px', padding: '14px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#9aa0a6' }}>Filtrar por Rubro:</span>
+          <select
+            value={currentRubro}
+            onChange={(e) => navigate({ rubro: e.target.value, page: 1 })}
+            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '200px' }}
+          >
+            <option value="all">Todos los Rubros</option>
+            {rubros.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#9aa0a6' }}>Estado de Video:</span>
+          <select
+            value={filterVideo}
+            onChange={(e) => setFilterVideo(e.target.value as any)}
+            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '200px' }}
+          >
+            <option value="all">Todos los Videos</option>
+            <option value="ready">Solo Videos Listos ✅</option>
+            <option value="pending">Sin Video Listo ⏳</option>
+          </select>
+        </div>
         {isPending && <span style={{ fontSize: '12px', color: '#8ab4f8', animation: 'pulse 1.5s infinite' }}>Cargando...</span>}
       </div>
 
@@ -237,7 +263,7 @@ export default function CrmClient({
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => {
+              {filteredLeads.map((lead) => {
                 const name = lead.raw_data.name || 'Sin nombre';
                 const rating = lead.raw_data.rating || 0;
                 const reviews = lead.raw_data.reviews || 0;
@@ -402,10 +428,10 @@ export default function CrmClient({
                   </tr>
                 );
               })}
-              {leads.length === 0 && (
+              {filteredLeads.length === 0 && (
                 <tr>
                   <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#9aa0a6' }}>
-                    Sin prospectos para este rubro.
+                    Sin prospectos para este filtro o rubro.
                   </td>
                 </tr>
               )}
