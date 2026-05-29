@@ -83,9 +83,41 @@ export default function CrmClient({
   const copyLandingUrl = (slug: string | undefined, id: string) => {
     if (!slug) return;
     const url = `leandrovenegas.cl/video/${slug}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    
+    // Defensive clipboard copy with fallback
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          setCopiedId(id);
+          setTimeout(() => setCopiedId(null), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy text using navigator.clipboard: ', err);
+        });
+    } else {
+      // Legacy / Non-secure context fallback
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        // Avoid scrolling to bottom
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (successful) {
+          setCopiedId(id);
+          setTimeout(() => setCopiedId(null), 2000);
+        } else {
+          console.warn('Fallback copy failed');
+        }
+      } catch (err) {
+        console.error('Fallback copy exception: ', err);
+      }
+    }
   };
 
   // Helper to determine the pipeline state
