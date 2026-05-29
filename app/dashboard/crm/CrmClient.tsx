@@ -24,7 +24,7 @@ interface RawLeadItem {
     email?: string | null;
   } | null;
   created_at: string;
-  video_queue?: { status: string; defectuoso: boolean }[];
+  video_queue?: { status: string; defectuoso: boolean; bunny_url?: string | null }[];
   outreach?: { canal: string; estado: string; notas: string | null; created_at: string }[];
 }
 
@@ -401,6 +401,30 @@ export default function CrmClient({
                           )
                         ) : (
                           <span style={{ fontSize: '11.5px', color: '#666', fontStyle: 'italic' }}>Sin teléfono</span>
+                        )}
+
+                        {/* Video MP4 Button from Bunny.net */}
+                        {lead.video_queue && lead.video_queue.find(q => q.status === 'completed' && !q.defectuoso)?.bunny_url && (
+                          <a
+                            href={lead.video_queue.find(q => q.status === 'completed' && !q.defectuoso)?.bunny_url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: 'rgba(138, 180, 248, 0.1)',
+                              border: '1px solid rgba(138, 180, 248, 0.3)',
+                              color: '#8ab4f8',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              textDecoration: 'none',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            📹 Ver Video ↗
+                          </a>
                         )}
 
                         {/* GA4 Reporting Button */}

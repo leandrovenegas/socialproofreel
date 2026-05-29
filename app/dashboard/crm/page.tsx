@@ -20,7 +20,7 @@ export default async function CrmPage(props: {
   // 1. Fetch raw_leads with pagination and filters
   let query = supabase
     .from('raw_leads')
-    .select('*, video_queue(status, defectuoso), outreach(*)', { count: 'exact' })
+    .select('*, video_queue(status, defectuoso, bunny_url), outreach(*)', { count: 'exact' })
     .order('created_at', { ascending: false });
 
   if (rubro !== 'all') {
