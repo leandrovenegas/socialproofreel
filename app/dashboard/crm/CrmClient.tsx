@@ -181,7 +181,7 @@ export default function CrmClient({
     <div style={{ padding: '24px 40px', color: '#e8eaed', background: '#121212', minHeight: '100vh', fontFamily: "'Roboto', sans-serif" }}>
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500 }}>CRM de Leads</h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9aa0a6' }}>

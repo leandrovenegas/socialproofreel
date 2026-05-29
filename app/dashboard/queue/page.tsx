@@ -8,11 +8,12 @@ const PAGE_SIZE = 50;
 export default async function QueuePage({
   searchParams,
 }: {
-  searchParams: { page?: string; status?: string; rubro?: string };
+  searchParams: Promise<{ page?: string; status?: string; rubro?: string }>;
 }) {
-  const page = Math.max(1, parseInt(searchParams.page || '1'));
-  const status = searchParams.status || 'all';
-  const rubro = searchParams.rubro || 'all';
+  const { page: pageParam, status: statusParam, rubro: rubroParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam || '1'));
+  const status = statusParam || 'all';
+  const rubro = rubroParam || 'all';
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
