@@ -78,15 +78,24 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
   const reviewTextSize = config.review_text_size || 34;
   const reviewerNameSize = config.reviewer_name_size || 30;
   // Defensive defaults for effects – prevents "inputRange must contain only numbers"
-  const fx: EffectsConfig = {
-    fade_in_duration: 20,
-    card_slide_distance: 60,
-    card_damping: 14,
-    stars_initial_scale: 0.3,
-    stars_damping: 10,
-    stagger_delay: 5,
-    ...(config.effects || {}),
-  };
+  const fx: EffectsConfig = Object.assign(
+    { fade_in_duration: 20, card_slide_distance: 60, card_damping: 14, stars_initial_scale: 0.3, stars_damping: 10, stagger_delay: 5 },
+    config.effects || {}
+  ) as EffectsConfig;
+
+  // Defensive defaults for component_order — must be declared before visibleItems
+  const componentOrder: ComponentItem[] = config.component_order || [
+    { id: 'avatar', label: 'Avatar', visible: true },
+    { id: 'stars', label: 'Estrellas', visible: true },
+    { id: 'review_text', label: 'Texto de Reseña', visible: true },
+    { id: 'reviewer_name', label: 'Nombre del Autor', visible: true },
+  ];
+
+  // Defensive defaults for business_name — must be declared before JSX
+  const biz: BusinessNameConfig = Object.assign(
+    { visible: true, show_rating: true, text_size: 52, rating_text_size: 32 },
+    config.business_name || {}
+  ) as BusinessNameConfig;
 
   // Resolve multiple reviews or single fallback
   const reviews = metadata.reviews || [
@@ -237,22 +246,7 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
     }
   };
 
-  // Defensive defaults for business_name
-  const biz: BusinessNameConfig = {
-    visible: true,
-    show_rating: true,
-    text_size: 52,
-    rating_text_size: 32,
-    ...(config.business_name || {}),
-  };
-
-  // Defensive defaults for component_order
-  const componentOrder: ComponentItem[] = config.component_order || [
-    { id: 'avatar', label: 'Avatar', visible: true },
-    { id: 'stars', label: 'Estrellas', visible: true },
-    { id: 'review_text', label: 'Texto de Reseña', visible: true },
-    { id: 'reviewer_name', label: 'Nombre del Autor', visible: true },
-  ];
+  // (componentOrder and biz are declared above, near fx)
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#202124', overflow: 'hidden', fontFamily }}>
