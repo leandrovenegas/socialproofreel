@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -78,6 +78,14 @@ export default function QueueClient({
   const [defectoModal, setDefectoModal] = useState<{ id: string; nota: string } | null>(null);
   const [leads, setLeads] = useState<RawLeadItem[]>(initialLeads);
   const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
+
+  useEffect(() => {
+    setQueue(initialQueue);
+  }, [initialQueue]);
+
+  useEffect(() => {
+    setLeads(initialLeads);
+  }, [initialLeads]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -195,7 +203,7 @@ export default function QueueClient({
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '24px', alignItems: 'start' }}>
+      <div style={{ display: 'block', width: '100%' }}>
 
         {/* COLA */}
         <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '14px', padding: '20px' }}>
@@ -319,38 +327,6 @@ export default function QueueClient({
                 Siguiente →
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* LEADS DISPONIBLES */}
-        <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '14px', padding: '20px' }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 500 }}>Leads Disponibles</h2>
-          <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#9aa0a6' }}>Sin procesar — mandar a render.</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {leads.map((lead) => {
-              const name = lead.raw_data.name || 'Sin nombre';
-              const rating = lead.raw_data.rating || 0;
-              const mapsUrl = lead.raw_data.url || lead.raw_data.link || lead.raw_data.maps_url;
-              return (
-                <div key={lead.id} style={{ background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div>
-                    <strong style={{ display: 'block', fontSize: '13px', color: '#e8eaed' }}>{name}</strong>
-                    <span style={{ fontSize: '11px', color: '#9aa0a6' }}>{lead.rubro || 'Sin rubro'}</span>
-                    <span style={{ display: 'block', fontSize: '12px', color: '#f4b400' }}>{'★'.repeat(Math.round(rating))}</span>
-                  </div>
-                  <button
-                    disabled={isSubmitting !== null}
-                    onClick={() => handleSendToQueue(lead.id, name, mapsUrl)}
-                    style={{ width: '100%', background: isSubmitting === lead.id ? '#444' : '#4285f4', color: 'white', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 500, cursor: isSubmitting !== null ? 'not-allowed' : 'pointer' }}
-                  >
-                    {isSubmitting === lead.id ? 'Enviando…' : 'Render ➔'}
-                  </button>
-                </div>
-              );
-            })}
-            {leads.length === 0 && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#666', border: '1px dashed #333', borderRadius: '8px', fontSize: '12px' }}>No hay leads sin procesar.</div>
-            )}
           </div>
         </div>
 
