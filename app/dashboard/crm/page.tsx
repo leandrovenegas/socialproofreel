@@ -20,7 +20,10 @@ export default async function CrmPage(props: {
   // 1. Fetch raw_leads with pagination and filters
   let query = supabase
     .from('raw_leads')
-    .select('*, video_queue(status, defectuoso, bunny_url), outreach(*)', { count: 'exact' })
+    .select('*, video_queue!inner(status, defectuoso, bunny_url), outreach(*)', { count: 'exact' })
+    .eq('video_queue.status', 'completed')
+    .eq('video_queue.defectuoso', false)
+    .not('video_queue.bunny_url', 'is', null)
     .order('created_at', { ascending: false });
 
   if (rubro !== 'all') {
@@ -33,32 +36,33 @@ export default async function CrmPage(props: {
     console.error('Error fetching CRM leads:', error);
   }
 
-  // 2. Fetch all unique rubros to populate filter dropdown
-  const { data: rubroRows } = await supabase
-    .from('raw_leads')
-    .select('rubro')
-    .not('rubro', 'is', null);
+  // 2. Fetch all unique rubros to populate filter dropdown from 'rubros' table
+  const { data: rubrosRows } = await supabase
+    .from('rubros')
+    .select('nombre')
+    .order('nombre');
 
-  const rubrosList = Array.from(
-    new Set(rubroRows?.map((r) => r.rubro).filter(Boolean) || [])
-  ).sort() as string[];
+  const rubrosList = rubrosRows?.map((r) => r.nombre).filter(Boolean) as string[] || [];
 
   // 3. Compute stats for general indicators
-  // We can fetch status from all video_queue to show complete stats
-  const { data: allQueue } = await supabase
-    .from('video_queue')
-    .select('status, defectuoso');
-
-  const { data: allOutreach } = await supabase
-    .from('outreach')
-    .select('canal, estado, notas');
+  const [
+    { count: videoReadyCount },
+    { count: contactedCount },
+    { count: landingsOpenedCount },
+    { count: closedCount }
+  ] = await Promise.all([
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').eq('defectuoso', false),
+    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('canal', 'whatsapp').eq('estado', 'contactado'),
+    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('canal', 'web'),
+    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('estado', 'cerrado'),
+  ]);
 
   const stats = {
     totalLeads: count || 0,
-    videoReady: allQueue?.filter((q) => q.status === 'completed' && !q.defectuoso).length || 0,
-    contacted: allOutreach?.filter((o) => o.canal === 'whatsapp' && o.estado === 'contactado').length || 0,
-    landingsOpened: allOutreach?.filter((o) => o.canal === 'web').length || 0,
-    closed: allOutreach?.filter((o) => o.estado === 'cerrado').length || 0,
+    videoReady: videoReadyCount || 0,
+    contacted: contactedCount || 0,
+    landingsOpened: landingsOpenedCount || 0,
+    closed: closedCount || 0,
   };
 
   return (

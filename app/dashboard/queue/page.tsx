@@ -30,21 +30,31 @@ export default async function QueuePage({
   const { data: queueData, count } = await query;
 
   // Stats y rubros
-  const { data: allStatuses } = await supabase
-    .from('video_queue')
-    .select('status, rubro');
+  const [
+    { count: totalCountQuery },
+    { count: pendingCountQuery },
+    { count: completedCountQuery },
+    { count: failedCountQuery },
+    { count: renderingCountQuery },
+    { data: rubrosRows }
+  ] = await Promise.all([
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }),
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'rendering'),
+    supabase.from('rubros').select('nombre').order('nombre')
+  ]);
 
   const stats = {
-    total: allStatuses?.length || 0,
-    pending: allStatuses?.filter((r) => r.status === 'pending').length || 0,
-    completed: allStatuses?.filter((r) => r.status === 'completed').length || 0,
-    failed: allStatuses?.filter((r) => r.status === 'failed').length || 0,
-    rendering: allStatuses?.filter((r) => r.status === 'rendering').length || 0,
+    total: totalCountQuery || 0,
+    pending: pendingCountQuery || 0,
+    completed: completedCountQuery || 0,
+    failed: failedCountQuery || 0,
+    rendering: renderingCountQuery || 0,
   };
 
-  const rubros = Array.from(
-    new Set(allStatuses?.map((r) => r.rubro).filter(Boolean) || [])
-  ).sort() as string[];
+  const rubros = rubrosRows?.map((r) => r.nombre).filter(Boolean) as string[] || [];
 
   // Leads sin procesar
   const { data: rawLeads } = await supabase

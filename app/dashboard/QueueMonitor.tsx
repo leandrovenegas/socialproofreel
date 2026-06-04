@@ -13,7 +13,8 @@ export default function QueueMonitor() {
       const { data, error } = await supabase
         .from('video_queue')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (!error && data) {
         setQueue(data as VideoQueue[]);
