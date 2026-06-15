@@ -11,6 +11,9 @@ dependencies:
   '@supabase/supabase-js':
     specifier: ^2.105.4
     version: 2.106.1
+  lightningcss-win32-x64-msvc:
+    specifier: ^1.32.0
+    version: 1.32.0
   next:
     specifier: 16.2.6
     version: 16.2.6(@babel/core@7.29.0)(react-dom@19.2.4)(react@19.2.4)
@@ -2780,8 +2783,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
-    optional: true
 
   /lightningcss@1.32.0:
     resolution: {integrity: sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ==}
