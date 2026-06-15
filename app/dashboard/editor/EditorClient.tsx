@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import type { ComponentItem, VideoTemplateConfig, EffectsConfig, BusinessNameConfig } from '@/components/remotion/VideoTemplate';
 
@@ -143,9 +144,36 @@ export default function EditorClient() {
         display: 'flex', flexDirection: 'column', height: '100%',
       }}>
         {/* Header */}
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #333', background: '#252525' }}>
-          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 500, color: '#e8eaed' }}>Editor de Plantilla</h2>
-          <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9aa0a6' }}>Cambios en tiempo real</p>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #333', background: '#252525', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 500, color: '#e8eaed' }}>Editor de Plantilla</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9aa0a6' }}>Cambios en tiempo real</p>
+          </div>
+          <Link 
+            href="/dashboard" 
+            style={{ 
+              textDecoration: 'none', 
+              background: 'rgba(255,255,255,0.06)', 
+              border: '1px solid rgba(255,255,255,0.1)', 
+              color: '#e8eaed', 
+              padding: '6px 12px', 
+              borderRadius: '6px', 
+              fontSize: '12px', 
+              fontWeight: 500, 
+              transition: 'all 0.2s',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            ← Volver
+          </Link>
         </div>
 
         {/* Tabs */}
