@@ -5,7 +5,7 @@ import LeadDetail from './LeadDetail';
 export const revalidate = 0;
 
 export default async function LeadDetailPage(props: {
-  params: Promise<{ leadId: string }> | { leadId: string };
+  params: Promise<{ leadId: string }>;
 }) {
   // Safe resolution of params (fully compatible with all Next.js versions)
   const resolvedParams = await props.params;

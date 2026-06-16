@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import VideoLandingClient from './VideoLandingClient';
 
 interface VideoPageProps {
-  params: Promise<{ slug: string }> | { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 async function getLeadBySlug(slug: string) {
