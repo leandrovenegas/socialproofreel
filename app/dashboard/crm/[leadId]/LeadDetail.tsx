@@ -58,6 +58,14 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const [outreachList, setOutreachList] = useState<OutreachRecord[]>(initialOutreach);
   const [isPending, startTransition] = useTransition();
 
+  // Contact data states
+  const [contactData, setContactData] = useState(lead.contact_data || null);
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editPhone, setEditPhone] = useState(lead.contact_data?.phone_international || lead.contact_data?.phone || lead.raw_data?.phone || '');
+  const [editWebsite, setEditWebsite] = useState(lead.contact_data?.website || '');
+  const [editEmail, setEditEmail] = useState(lead.contact_data?.email || '');
+  const [savingContact, setSavingContact] = useState(false);
+
   // Find the primary outreach record (usually the latest one, or first WhatsApp one) to update notes and states
   const mainRecord = outreachList[outreachList.length - 1] || null;
 
@@ -94,9 +102,9 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const name = lead.raw_data.name || 'Sin nombre';
   const rating = lead.raw_data.rating || 0;
   const reviews = lead.raw_data.reviews || 0;
-  const phone = lead.contact_data?.phone_international || lead.contact_data?.phone || lead.raw_data?.phone || null;
-  const website = lead.contact_data?.website || null;
-  const email = lead.contact_data?.email || null;
+  const phone = contactData?.phone_international || contactData?.phone || lead.raw_data?.phone || null;
+  const website = contactData?.website || null;
+  const email = contactData?.email || null;
 
   const getWhatsAppMessage = () => {
     if (highestStage <= 2) {
@@ -207,6 +215,41 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     }
   };
 
+  const handleSaveContact = async () => {
+    setSavingContact(true);
+    try {
+      const updatedContactData = {
+        ...(contactData || {}),
+        phone: editPhone || null,
+        phone_international: editPhone || null,
+        website: editWebsite || null,
+        email: editEmail || null,
+      };
+
+      const { error } = await supabase
+        .from('raw_leads')
+        .update({ contact_data: updatedContactData })
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      setContactData(updatedContactData);
+      setIsEditingContact(false);
+      alert('Datos de contacto actualizados correctamente.');
+    } catch (err) {
+      alert('Error al guardar datos de contacto: ' + (err as Error).message);
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const handleCancelContact = () => {
+    setEditPhone(phone || '');
+    setEditWebsite(website || '');
+    setEditEmail(email || '');
+    setIsEditingContact(false);
+  };
+
   return (
     <div style={{ padding: '24px 40px', color: '#e8eaed', background: '#121212', minHeight: '100vh', fontFamily: "'Roboto', sans-serif" }}>
       
@@ -308,30 +351,162 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
 
           {/* CONTACT INFO */}
           <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '14px', padding: '20px' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 500, borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-              Datos de Contacto
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-              <div>
-                <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Teléfono</span>
-                <strong>{phone || <span style={{ color: '#666', fontStyle: 'italic' }}>Sin teléfono registrado</span>}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Sitio Web</span>
-                {website ? (
-                  <a href={website} target="_blank" rel="noopener noreferrer" style={{ color: '#8ab4f8', textDecoration: 'none', fontWeight: 500 }}>
-                    {website} ↗
-                  </a>
-                ) : (
-                  <span style={{ color: '#666', fontStyle: 'italic' }}>Sin sitio web</span>
-                )}
-              </div>
-              <div>
-                <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Email</span>
-                <strong>{email || <span style={{ color: '#666', fontStyle: 'italic' }}>Sin email registrado</span>}</strong>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 500 }}>
+                Datos de Contacto
+              </h3>
+              {!isEditingContact && (
+                <button
+                  onClick={() => {
+                    // Sync inputs with current state before editing
+                    setEditPhone(phone || '');
+                    setEditWebsite(website || '');
+                    setEditEmail(email || '');
+                    setIsEditingContact(true);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#8ab4f8',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(138, 180, 248, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  ✏️ Editar
+                </button>
+              )}
             </div>
-          </div>
+            
+            {isEditingContact ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ color: '#9aa0a6', display: 'block', marginBottom: '4px', fontSize: '11px' }}>Teléfono</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="Ej: +56912345678"
+                    style={{
+                      width: '100%',
+                      background: '#2d2d2d',
+                      border: '1px solid #444',
+                      color: '#e8eaed',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: '#9aa0a6', display: 'block', marginBottom: '4px', fontSize: '11px' }}>Sitio Web</label>
+                  <input
+                    type="url"
+                    value={editWebsite}
+                    onChange={(e) => setEditWebsite(e.target.value)}
+                    placeholder="Ej: https://mi-sitio.com"
+                    style={{
+                      width: '100%',
+                      background: '#2d2d2d',
+                      border: '1px solid #444',
+                      color: '#e8eaed',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: '#9aa0a6', display: 'block', marginBottom: '4px', fontSize: '11px' }}>Email</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="Ej: contacto@negocio.com"
+                    style={{
+                      width: '100%',
+                      background: '#2d2d2d',
+                      border: '1px solid #444',
+                      color: '#e8eaed',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    onClick={handleSaveContact}
+                    disabled={savingContact}
+                    style={{
+                      flex: 1,
+                      background: '#34a853',
+                      border: 'none',
+                      color: 'white',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    {savingContact ? 'Guardando...' : '💾 Guardar'}
+                  </button>
+                  <button
+                    onClick={handleCancelContact}
+                    disabled={savingContact}
+                    style={{
+                      background: '#2d2d2d',
+                      border: '1px solid #444',
+                      color: '#e8eaed',
+                      fontWeight: 500,
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                <div>
+                  <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Teléfono</span>
+                  <strong>{phone || <span style={{ color: '#666', fontStyle: 'italic' }}>Sin teléfono registrado</span>}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Sitio Web</span>
+                  {website ? (
+                    <a href={website} target="_blank" rel="noopener noreferrer" style={{ color: '#8ab4f8', textDecoration: 'none', fontWeight: 500 }}>
+                      {website} ↗
+                    </a>
+                  ) : (
+                    <span style={{ color: '#666', fontStyle: 'italic' }}>Sin sitio web</span>
+                  )}
+                </div>
+                <div>
+                  <span style={{ color: '#9aa0a6', display: 'block', marginBottom: '2px' }}>Email</span>
+                  <strong>{email || <span style={{ color: '#666', fontStyle: 'italic' }}>Sin email registrado</span>}</strong>
+                </div>
+              </div>
+            )}
 
         </div>
 
