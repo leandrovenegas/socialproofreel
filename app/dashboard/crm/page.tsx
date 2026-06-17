@@ -7,7 +7,7 @@ export const revalidate = 0; // Disable static rendering
 const PAGE_SIZE = 50;
 
 export default async function CrmPage(props: {
-  searchParams: Promise<{ page?: string; rubro?: string }> | { page?: string; rubro?: string };
+  searchParams: Promise<{ page?: string; rubro?: string }>;
 }) {
   // Safe resolution of searchParams (fully compatible with all Next.js versions)
   const resolvedSearchParams = await props.searchParams;
