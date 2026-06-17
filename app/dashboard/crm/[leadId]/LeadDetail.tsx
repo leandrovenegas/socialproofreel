@@ -507,6 +507,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
                 </div>
               </div>
             )}
+          </div>
 
         </div>
 
