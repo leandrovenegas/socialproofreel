@@ -46,6 +46,120 @@ interface CrmClientProps {
   stats: Stats;
 }
 
+// Reusable WhatsApp Outreach Button Component (checks for phone, opens link or copies message)
+interface WhatsAppOutreachButtonProps {
+  leadId: string;
+  phone: string | null | undefined;
+  messageText: string;
+  highest: number;
+  onWhatsAppClick: (leadId: string, highestStage: number) => void;
+}
+
+function WhatsAppOutreachButton({ leadId, phone, messageText, highest, onWhatsAppClick }: WhatsAppOutreachButtonProps) {
+  const [copied, setCopied] = useState(false);
+  const hasPhone = !!phone && phone.trim() !== '';
+
+  const copyMessageText = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(messageText)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy text: ', err);
+          fallbackCopy(messageText);
+        });
+    } else {
+      fallbackCopy(messageText);
+    }
+  };
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (successful) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Fallback copy exception: ', err);
+    }
+  };
+
+  if (hasPhone) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+    return (
+      <a
+        href={waUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => onWhatsAppClick(leadId, highest)}
+        style={{
+          background: 'rgba(76, 175, 80, 0.1)',
+          border: '1px solid rgba(76, 175, 80, 0.3)',
+          color: '#4caf50',
+          borderRadius: '6px',
+          padding: '6px 12px',
+          fontSize: '11px',
+          textDecoration: 'none',
+          fontWeight: 600,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(76, 175, 80, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(76, 175, 80, 0.1)';
+        }}
+      >
+        💬 Abrir WhatsApp ↗
+      </a>
+    );
+  }
+
+  return (
+    <button
+      onClick={copyMessageText}
+      style={{
+        background: copied ? 'rgba(52, 168, 83, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+        border: copied ? '1px solid #34a853' : '1px solid rgba(255, 255, 255, 0.15)',
+        color: copied ? '#34a853' : '#e8eaed',
+        borderRadius: '6px',
+        padding: '6px 12px',
+        fontSize: '11px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        if (!copied) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+      }}
+      onMouseLeave={(e) => {
+        if (!copied) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+      }}
+    >
+      📋 {copied ? 'Copiado ✓' : 'Copiar mensaje'}
+    </button>
+  );
+}
+
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -144,27 +258,6 @@ export default function CrmClient({
     return { steps, highest };
   };
 
-  const getWhatsAppUrlAndMessage = (lead: RawLeadItem, highestStage: number) => {
-    const phone = lead.contact_data?.phone_international || lead.contact_data?.phone || lead.raw_data?.phone || '';
-    if (!phone) return { url: null, message: '' };
-
-    const cleanPhone = phone.replace(/\D/g, '');
-    const businessName = lead.raw_data.name || 'tu negocio';
-
-    let message = '';
-    if (highestStage <= 2) {
-      message = `Hola! Vi que tienes reseñas en Google y te generé un video gratis con ellas. ¿Lo quieres ver?`;
-    } else if (highestStage <= 4) {
-      message = `Hola! ¿Pudiste ver el video? Lo hice especialmente para ${businessName}. Con esto puedes conseguir más clientes mostrando tus reseñas en redes.`;
-    } else {
-      message = `Hola! Para que puedas publicarlo y empezar a usarlo, el sistema completo tiene un valor de $X. ¿Te interesa?`;
-    }
-
-    return {
-      url: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`,
-      message,
-    };
-  };
 
   const handleWhatsAppClick = async (leadId: string, highestStage: number) => {
     // Register outreach event when whatsapp is clicked (whatsapp contactado)
@@ -299,9 +392,19 @@ export default function CrmClient({
                 const name = lead.raw_data.name || 'Sin nombre';
                 const rating = lead.raw_data.rating || 0;
                 const reviews = lead.raw_data.reviews || 0;
-                const phone = lead.contact_data?.phone_international || lead.contact_data?.phone || lead.raw_data?.phone;
+                const phoneInternational = lead.contact_data?.phone_international;
                 const { steps, highest } = getPipelineStatus(lead);
-                const { url: waUrl } = getWhatsAppUrlAndMessage(lead, highest);
+                
+                // Final unencoded message text using exact variables
+                const messageText = `Hola, soy Leandro — especialista en video para negocios.
+
+Vi el perfil de ${name} en Google y armé un video corto con las reseñas de sus clientes. Es gratis, listo para usar en redes.
+
+👉 https://leandrovenegas.cl/video/${lead.slug || ''}
+
+Estoy validando este tipo de videos y necesito casos reales. Por eso lo regalo.
+
+Dime qué te parece.`;
 
                 return (
                   <tr key={lead.id} style={{ borderBottom: '1px solid #2a2a2a' }} className="hover:bg-white/[0.02] transition-colors">
@@ -404,36 +507,14 @@ export default function CrmClient({
                           </button>
                         )}
 
-                        {/* WhatsApp Pre-loaded Button */}
-                        {phone ? (
-                          waUrl ? (
-                            <a
-                              href={waUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => handleWhatsAppClick(lead.id, highest)}
-                              style={{
-                                background: 'rgba(76, 175, 80, 0.1)',
-                                border: '1px solid rgba(76, 175, 80, 0.3)',
-                                color: '#4caf50',
-                                borderRadius: '6px',
-                                padding: '6px 12px',
-                                fontSize: '11px',
-                                textDecoration: 'none',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
-                            >
-                              💬 WhatsApp ↗
-                            </a>
-                          ) : (
-                            <span style={{ fontSize: '11px', color: '#ea4335' }}>WA No Disponible</span>
-                          )
-                        ) : (
-                          <span style={{ fontSize: '11.5px', color: '#666', fontStyle: 'italic' }}>Sin teléfono</span>
-                        )}
+                        {/* WhatsApp Outreach Action */}
+                        <WhatsAppOutreachButton
+                          leadId={lead.id}
+                          phone={phoneInternational}
+                          messageText={messageText}
+                          highest={highest}
+                          onWhatsAppClick={handleWhatsAppClick}
+                        />
 
                         {/* Video MP4 Button from Bunny.net */}
                         {lead.video_queue && lead.video_queue.find(q => q.status === 'completed' && !q.defectuoso)?.bunny_url && (
