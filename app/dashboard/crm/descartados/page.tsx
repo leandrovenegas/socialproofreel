@@ -1,10 +1,10 @@
 import React from 'react';
-import CrmClient from './CrmClient';
-import { fetchCrmData } from './crm-loader';
+import CrmClient from '../CrmClient';
+import { fetchCrmData } from '../crm-loader';
 
 export const revalidate = 0; // Disable static rendering
 
-export default async function CrmPage(props: {
+export default async function DescartadosPage(props: {
   searchParams: Promise<{ page?: string; rubro?: string }>;
 }) {
   const resolvedSearchParams = await props.searchParams;
@@ -17,7 +17,7 @@ export default async function CrmPage(props: {
     rubrosList,
     stats,
     pageSize,
-  } = await fetchCrmData('sin_contactar', resolvedSearchParams);
+  } = await fetchCrmData('descartado', resolvedSearchParams);
 
   return (
     <CrmClient
@@ -28,7 +28,7 @@ export default async function CrmPage(props: {
       currentRubro={rubro}
       rubros={rubrosList}
       stats={stats}
-      viewType="sin_contactar"
+      viewType="descartados"
     />
   );
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 interface RawLeadItem {
   id: string;
@@ -26,6 +26,9 @@ interface RawLeadItem {
   created_at: string;
   video_queue?: { status: string; defectuoso: boolean; bunny_url?: string | null }[];
   outreach?: { canal: string; estado: string; notas: string | null; created_at: string }[];
+  score?: number;
+  crm_status?: 'sin_contactar' | 'contactado' | 'descartado';
+  pipeline_stage?: 'prospecto' | 'propuesta' | 'cierre' | 'ganado' | 'perdido';
 }
 
 interface Stats {
@@ -44,6 +47,7 @@ interface CrmClientProps {
   currentRubro: string;
   rubros: string[];
   stats: Stats;
+  viewType: 'sin_contactar' | 'pipeline' | 'descartados';
 }
 
 // Reusable WhatsApp Outreach Button Component (checks for phone, opens link or copies message)
@@ -160,12 +164,6 @@ function WhatsAppOutreachButton({ leadId, phone, messageText, highest, onWhatsAp
   );
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${String(d.getUTCFullYear()).slice(2)}`;
-}
-
 export default function CrmClient({
   initialLeads,
   totalCount,
@@ -174,8 +172,10 @@ export default function CrmClient({
   currentRubro,
   rubros,
   stats,
+  viewType = 'sin_contactar',
 }: CrmClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [leads, setLeads] = useState<RawLeadItem[]>(initialLeads);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -191,7 +191,7 @@ export default function CrmClient({
     const p = new URLSearchParams();
     p.set('page', String(params.page ?? currentPage));
     p.set('rubro', params.rubro ?? currentRubro);
-    startTransition(() => router.push(`/dashboard/crm?${p.toString()}`));
+    startTransition(() => router.push(`${pathname}?${p.toString()}`));
   };
 
   const copyLandingUrl = (slug: string | undefined, id: string) => {
@@ -258,7 +258,6 @@ export default function CrmClient({
     return { steps, highest };
   };
 
-
   const handleWhatsAppClick = async (leadId: string, highestStage: number) => {
     // Register outreach event when whatsapp is clicked (whatsapp contactado)
     if (highestStage < 2) {
@@ -280,6 +279,67 @@ export default function CrmClient({
           )
         );
       }
+    }
+  };
+
+  const handleScoreChange = async (leadId: string, newScore: number) => {
+    if (isNaN(newScore)) return;
+    const validatedScore = Math.max(1, Math.min(100, newScore));
+
+    // Update locally and immediately re-sort DESC
+    setLeads((prev) => {
+      const updated = prev.map((l) =>
+        l.id === leadId ? { ...l, score: validatedScore } : l
+      );
+      return updated.sort((a, b) => (b.score ?? 50) - (a.score ?? 50));
+    });
+
+    const { error } = await supabase
+      .from('raw_leads')
+      .update({ score: validatedScore })
+      .eq('id', leadId);
+
+    if (error) {
+      console.error('Error updating lead score:', error);
+    }
+  };
+
+  const handleUpdateStatus = async (leadId: string, status: string, stage?: string) => {
+    // Remove lead from local view
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+
+    const updateData: any = { crm_status: status };
+    if (stage !== undefined) {
+      updateData.pipeline_stage = stage;
+    } else if (status === 'sin_contactar') {
+      // Restoration defaults: reset score to 50 and clear stage
+      updateData.score = 50;
+      updateData.pipeline_stage = null;
+    }
+
+    const { error } = await supabase
+      .from('raw_leads')
+      .update(updateData)
+      .eq('id', leadId);
+
+    if (error) {
+      console.error(`Error updating lead crm_status to ${status}:`, error);
+    }
+  };
+
+  const handleStageChange = async (leadId: string, newStage: string) => {
+    // Update locally
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, pipeline_stage: newStage as any } : l))
+    );
+
+    const { error } = await supabase
+      .from('raw_leads')
+      .update({ pipeline_stage: newStage })
+      .eq('id', leadId);
+
+    if (error) {
+      console.error('Error updating pipeline stage:', error);
     }
   };
 
@@ -308,7 +368,11 @@ export default function CrmClient({
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500 }}>CRM de Leads</h1>
+          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500 }}>
+            {viewType === 'sin_contactar' && 'CRM - Leads Sin Contactar'}
+            {viewType === 'pipeline' && 'CRM - Pipeline de Contactados'}
+            {viewType === 'descartados' && 'CRM - Archivo Muerto (Descartados)'}
+          </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9aa0a6' }}>
             {totalCount} prospectos en total · Página {currentPage} de {totalPages}
           </p>
@@ -321,6 +385,34 @@ export default function CrmClient({
             🎬 Ver Cola de Renderizado
           </Link>
         </div>
+      </div>
+
+      {/* CRM NAVIGATION TABS */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #333', paddingBottom: '0px', marginBottom: '24px' }}>
+        {[
+          { label: '📥 Sin Contactar', path: '/dashboard/crm' },
+          { label: '🤝 Pipeline de Contacto', path: '/dashboard/crm/pipeline' },
+          { label: '🗑️ Descartados', path: '/dashboard/crm/descartados' },
+        ].map((tab) => {
+          const isActive = pathname === tab.path;
+          return (
+            <Link
+              key={tab.path}
+              href={tab.path}
+              style={{
+                textDecoration: 'none',
+                padding: '12px 20px',
+                borderBottom: isActive ? '3px solid #8ab4f8' : '3px solid transparent',
+                color: isActive ? '#8ab4f8' : '#9aa0a6',
+                fontWeight: isActive ? 600 : 500,
+                fontSize: '14px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
       </div>
 
       {/* PIPELINE GENERAL STATS */}
@@ -383,6 +475,10 @@ export default function CrmClient({
               <tr style={{ color: '#9aa0a6', borderBottom: '1px solid #333', textAlign: 'left' }}>
                 <th style={{ padding: '12px 14px', fontWeight: 500 }}>Negocio</th>
                 <th style={{ padding: '12px 14px', fontWeight: 500 }}>Rubro / Calificación</th>
+                <th style={{ padding: '12px 14px', fontWeight: 500, textAlign: 'center' }}>Score</th>
+                {viewType === 'pipeline' && (
+                  <th style={{ padding: '12px 14px', fontWeight: 500, textAlign: 'center' }}>Etapa Pipeline</th>
+                )}
                 <th style={{ padding: '12px 14px', fontWeight: 500, textAlign: 'center' }}>Flujo de Prospección (CRM Pipeline)</th>
                 <th style={{ padding: '12px 14px', fontWeight: 500, textAlign: 'right' }}>Acciones</th>
               </tr>
@@ -397,13 +493,13 @@ export default function CrmClient({
                 
                 // Final unencoded message text using exact variables
                 const messageText = `Hola, soy Leandro — especialista en video para negocios.
-
+ 
 Vi el perfil de ${name} en Google y armé un video corto con las reseñas de sus clientes. Es gratis, listo para usar en redes.
-
+ 
 👉 https://leandrovenegas.cl/video/${lead.slug || ''}
-
+ 
 Estoy validando este tipo de videos y necesito casos reales. Por eso lo regalo.
-
+ 
 Dime qué te parece.`;
 
                 return (
@@ -440,7 +536,60 @@ Dime qué te parece.`;
                       </div>
                     </td>
 
-                    {/* COL 3: Visual Pipeline */}
+                    {/* COL 3: Score (Inline numeric input unless discarded) */}
+                    <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                      {viewType === 'descartados' ? (
+                        <span style={{ fontWeight: 600, fontSize: '14px', color: '#e8eaed' }}>
+                          {lead.score ?? 50}
+                        </span>
+                      ) : (
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={lead.score ?? 50}
+                          onChange={(e) => handleScoreChange(lead.id, parseInt(e.target.value))}
+                          style={{
+                            background: '#2d2d2d',
+                            border: '1px solid #444',
+                            color: '#e8eaed',
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            width: '65px',
+                            textAlign: 'center',
+                            outline: 'none',
+                          }}
+                        />
+                      )}
+                    </td>
+
+                    {/* COL 4 (Conditional): Pipeline Stage Selector */}
+                    {viewType === 'pipeline' && (
+                      <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                        <select
+                          value={lead.pipeline_stage || 'prospecto'}
+                          onChange={(e) => handleStageChange(lead.id, e.target.value)}
+                          style={{
+                            background: '#2d2d2d',
+                            border: '1px solid #444',
+                            color: '#e8eaed',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                            outline: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <option value="prospecto">Prospecto 🤝</option>
+                          <option value="propuesta">Propuesta 📄</option>
+                          <option value="cierre">Cierre ⏳</option>
+                          <option value="ganado">Ganado 🎉</option>
+                          <option value="perdido">Perdido ❌</option>
+                        </select>
+                      </td>
+                    )}
+
+                    {/* COL 5: Visual Pipeline */}
                     <td style={{ padding: '16px 14px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', gap: '4px' }}>
@@ -483,10 +632,94 @@ Dime qué te parece.`;
                       </div>
                     </td>
 
-                    {/* COL 4: Outreach Actions */}
+                    {/* COL 6: Outreach Actions */}
                     <td style={{ padding: '16px 14px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         
+                        {/* Status buttons based on viewType */}
+                        {viewType === 'sin_contactar' && (
+                          <>
+                            <button
+                              onClick={() => handleUpdateStatus(lead.id, 'contactado', 'prospecto')}
+                              style={{
+                                background: 'rgba(52, 168, 83, 0.15)',
+                                border: '1px solid rgba(52, 168, 83, 0.4)',
+                                color: '#2bcc71',
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                fontSize: '11px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(52, 168, 83, 0.25)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(52, 168, 83, 0.15)'}
+                            >
+                              📞 Contactado
+                            </button>
+                            <button
+                              onClick={() => handleUpdateStatus(lead.id, 'descartado')}
+                              style={{
+                                background: 'rgba(234, 67, 53, 0.15)',
+                                border: '1px solid rgba(234, 67, 53, 0.4)',
+                                color: '#ea4335',
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                fontSize: '11px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.25)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.15)'}
+                            >
+                              🗑️ Descartar
+                            </button>
+                          </>
+                        )}
+
+                        {viewType === 'pipeline' && (
+                          <button
+                            onClick={() => handleUpdateStatus(lead.id, 'descartado')}
+                            style={{
+                              background: 'rgba(234, 67, 53, 0.15)',
+                              border: '1px solid rgba(234, 67, 53, 0.4)',
+                              color: '#ea4335',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.25)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.15)'}
+                          >
+                            🗑️ Descartar
+                          </button>
+                        )}
+
+                        {viewType === 'descartados' && (
+                          <button
+                            onClick={() => handleUpdateStatus(lead.id, 'sin_contactar')}
+                            style={{
+                              background: 'rgba(138, 180, 248, 0.15)',
+                              border: '1px solid rgba(138, 180, 248, 0.4)',
+                              color: '#8ab4f8',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(138, 180, 248, 0.25)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(138, 180, 248, 0.15)'}
+                          >
+                            🔄 Restaurar
+                          </button>
+                        )}
+
                         {/* URL Copy Button */}
                         {lead.slug && (
                           <button
@@ -567,7 +800,7 @@ Dime qué te parece.`;
               })}
               {filteredLeads.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#9aa0a6' }}>
+                  <td colSpan={viewType === 'pipeline' ? 6 : 5} style={{ padding: '40px', textAlign: 'center', color: '#9aa0a6' }}>
                     Sin prospectos para este filtro o rubro.
                   </td>
                 </tr>
