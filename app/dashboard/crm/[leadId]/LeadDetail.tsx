@@ -69,7 +69,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   // Find the primary outreach record (usually the latest one, or first WhatsApp one) to update notes and states
   const mainRecord = outreachList[outreachList.length - 1] || null;
 
-  const [notes, setNotes] = useState<string>(mainRecord?.notas || '');
+  const [notes, setNotes] = useState<string>('');
   const [savingNotes, setSavingNotes] = useState<boolean>(false);
   const [currentEstado, setCurrentEstado] = useState<string>(mainRecord?.estado || 'pendiente');
 
@@ -143,36 +143,26 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   };
 
   const handleSaveNotes = async () => {
+    if (!notes.trim()) return; // Don't save empty notes
+
     setSavingNotes(true);
     try {
-      if (mainRecord) {
-        // Update existing record notes
-        const { error } = await supabase
-          .from('outreach')
-          .update({ notas: notes || null })
-          .eq('id', mainRecord.id);
+      // Create new outreach record for notes
+      const { data, error } = await supabase
+        .from('outreach')
+        .insert({
+          lead_id: lead.id,
+          canal: 'whatsapp', // Defaulting to whatsapp or keeping it generic based on schema
+          estado: currentEstado,
+          notas: notes || null,
+        })
+        .select()
+        .single();
 
-        if (error) throw error;
-        setOutreachList((prev) =>
-          prev.map((r) => (r.id === mainRecord.id ? { ...r, notas: notes || null } : r))
-        );
-      } else {
-        // Create new outreach record for notes
-        const { data, error } = await supabase
-          .from('outreach')
-          .insert({
-            lead_id: lead.id,
-            canal: 'whatsapp',
-            estado: currentEstado,
-            notas: notes || null,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          setOutreachList((prev) => [...prev, data as OutreachRecord]);
-        }
+      if (error) throw error;
+      if (data) {
+        setOutreachList((prev) => [...prev, data as OutreachRecord]);
+        setNotes(''); // Clear notes after saving
       }
       alert('Notas guardadas exitosamente.');
     } catch (err) {

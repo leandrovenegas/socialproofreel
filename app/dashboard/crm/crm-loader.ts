@@ -33,7 +33,7 @@ export async function fetchCrmData(
   const { data: rawLeads, count, error } = await query.range(from, to);
 
   if (error) {
-    console.error(`Error fetching CRM leads for status ${status}:`, error);
+    console.error(`Error fetching CRM leads for status ${status}:`, JSON.stringify(error, null, 2), error);
   }
 
   // 2. Fetch all unique rubros to populate filter dropdown from 'rubros' table
