@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
@@ -176,10 +176,11 @@ export default function CrmClient({
 }: CrmClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [leads, setLeads] = useState<RawLeadItem[]>(initialLeads);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [filterVideo, setFilterVideo] = useState<'all' | 'ready' | 'pending'>('all');
+  const [filterVideo, setFilterVideo] = useState<'all' | 'ready' | 'pending'>((searchParams.get('filterVideo') as any) || 'all');
 
   useEffect(() => {
     setLeads(initialLeads);
@@ -267,17 +268,22 @@ export default function CrmClient({
         .select()
         .single();
       if (!error && data) {
-        // Optimistically update locally
-        setLeads((prev) =>
-          prev.map((l) =>
-            l.id === leadId
-              ? {
-                  ...l,
-                  outreach: [...(l.outreach || []), data],
-                }
-              : l
-          )
-        );
+        // If we are in the inbox, moving them to pipeline makes sense immediately
+        if (viewType === 'sin_contactar') {
+          handleUpdateStatus(leadId, 'contactado', 'prospecto');
+        } else {
+          // Optimistically update locally
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    outreach: [...(l.outreach || []), data],
+                  }
+                : l
+            )
+          );
+        }
       }
     }
   };
@@ -509,7 +515,7 @@ Dime qué te parece.`;
                     <td style={{ padding: '16px 14px', minWidth: '220px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <Link
-                          href={`/dashboard/crm/${lead.id}`}
+                          href={`/dashboard/crm/${lead.id}?from=${viewType}&rubro=${encodeURIComponent(currentRubro)}&page=${currentPage}&filterVideo=${filterVideo}`}
                           style={{ fontWeight: 600, color: '#8ab4f8', textDecoration: 'none', fontSize: '14px' }}
                         >
                           {name} ↗

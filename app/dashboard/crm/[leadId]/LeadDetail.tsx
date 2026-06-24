@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
 interface VideoQueueItem {
@@ -55,8 +56,28 @@ function formatDateTime(dateStr: string) {
 }
 
 export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
+  const searchParams = useSearchParams();
   const [outreachList, setOutreachList] = useState<OutreachRecord[]>(initialOutreach);
   const [isPending, startTransition] = useTransition();
+
+  const getBackLink = () => {
+    const from = searchParams.get('from');
+    let link = '/dashboard/crm';
+    if (from === 'pipeline') link = '/dashboard/crm/pipeline';
+    if (from === 'descartados') link = '/dashboard/crm/descartados';
+
+    const params = new URLSearchParams();
+    const rubro = searchParams.get('rubro');
+    const page = searchParams.get('page');
+    const filterVideo = searchParams.get('filterVideo');
+
+    if (rubro) params.set('rubro', rubro);
+    if (page) params.set('page', page);
+    if (filterVideo) params.set('filterVideo', filterVideo);
+
+    const query = params.toString();
+    return query ? `${link}?${query}` : link;
+  };
 
   // Contact data states
   const [contactData, setContactData] = useState(lead.contact_data || null);
@@ -137,6 +158,8 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     if (!error && data) {
       setOutreachList((prev) => [...prev, data as OutreachRecord]);
       setCurrentEstado('contactado');
+      // Update raw_leads so it moves to pipeline
+      await supabase.from('raw_leads').update({ crm_status: 'contactado', pipeline_stage: 'prospecto' }).eq('id', lead.id);
     } else if (error) {
       alert('Error registrando WhatsApp: ' + error.message);
     }
@@ -245,7 +268,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
       
       {/* NAVIGATION */}
       <div style={{ marginBottom: '24px' }}>
-        <Link href="/dashboard/crm" style={{ color: '#8ab4f8', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
+        <Link href={getBackLink()} style={{ color: '#8ab4f8', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
           ← Volver al CRM de Leads
         </Link>
       </div>
