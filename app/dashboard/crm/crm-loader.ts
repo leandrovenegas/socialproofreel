@@ -15,7 +15,7 @@ export async function fetchCrmData(
   // 1. Fetch raw_leads with pagination and filters
   let query = supabase
     .from('raw_leads')
-    .select('*, video_queue(status, defectuoso, bunny_url), outreach(*)', { count: 'exact' });
+    .select('*, video_queue(status, defectuoso, bunny_url), outreach(*)', { count: 'estimated' });
 
   if (status === 'sin_contactar') {
     query = query.or('crm_status.eq.sin_contactar,crm_status.is.null');
@@ -51,10 +51,10 @@ export async function fetchCrmData(
     { count: landingsOpenedCount },
     { count: closedCount }
   ] = await Promise.all([
-    supabase.from('video_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').eq('defectuoso', false),
-    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('canal', 'whatsapp').eq('estado', 'contactado'),
-    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('canal', 'web'),
-    supabase.from('outreach').select('*', { count: 'exact', head: true }).eq('estado', 'cerrado'),
+    supabase.from('video_queue').select('*', { count: 'estimated', head: true }).eq('status', 'completed').eq('defectuoso', false),
+    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('canal', 'whatsapp').eq('estado', 'contactado'),
+    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('canal', 'web'),
+    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('estado', 'cerrado'),
   ]);
 
   const stats = {

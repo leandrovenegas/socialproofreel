@@ -1,9 +1,44 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
+
+interface MessageTemplate {
+  id: string;
+  label: string;
+  text: string;
+  stageTrigger?: number;
+}
+
+const DEFAULT_TEMPLATES: MessageTemplate[] = [
+  {
+    id: 't-1',
+    label: 'Contacto Inicial (Etapa 1-2)',
+    text: 'Hola! Vi que tienes reseñas en Google y te generé un video gratis con ellas para []. ¿Lo quieres ver?',
+    stageTrigger: 2
+  },
+  {
+    id: 't-2',
+    label: 'Seguimiento Video (Etapa 3-4)',
+    text: 'Hola! ¿Pudiste ver el video? Lo hice especialmente para ( ). Con esto puedes conseguir más clientes mostrando tus reseñas en redes.',
+    stageTrigger: 4
+  },
+  {
+    id: 't-3',
+    label: 'Oferta Comercial (Etapa 5-6)',
+    text: 'Hola! Para que puedas publicarlo y empezar a usarlo en [], el sistema completo tiene un valor de $X. ¿Te interesa?',
+    stageTrigger: 6
+  }
+];
+
+const replacePlaceholders = (text: string, companyName: string) => {
+  return text
+    .replace(/\[\s*\]/g, companyName)
+    .replace(/\(\s*\)/g, companyName);
+};
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { updateLeadContactData, updateLeadStatus } from '../actions';
 
 interface VideoQueueItem {
   id: string;
@@ -59,6 +94,35 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const searchParams = useSearchParams();
   const [outreachList, setOutreachList] = useState<OutreachRecord[]>(initialOutreach);
   const [isPending, startTransition] = useTransition();
+  const [urlCopied, setUrlCopied] = useState(false);
+
+  const copyLandingUrl = () => {
+    if (!lead.slug) return;
+    const url = `https://leandrovenegas.cl/video/${lead.slug}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          setUrlCopied(true);
+          setTimeout(() => setUrlCopied(false), 2000);
+        })
+        .catch((err) => console.error('Failed to copy text: ', err));
+    } else {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setUrlCopied(true);
+        setTimeout(() => setUrlCopied(false), 2000);
+      } catch (err) {
+        console.error('Fallback copy exception: ', err);
+      }
+    }
+  };
 
   const getBackLink = () => {
     const from = searchParams.get('from');
@@ -127,19 +191,128 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const website = contactData?.website || null;
   const email = contactData?.email || null;
 
-  const getWhatsAppMessage = () => {
-    if (highestStage <= 2) {
-      return `Hola! Vi que tienes reseñas en Google y te generé un video gratis con ellas. ¿Lo quieres ver?`;
-    } else if (highestStage <= 4) {
-      return `Hola! ¿Pudiste ver el video? Lo hice especialmente para ${name}. Con esto puedes conseguir más clientes mostrando tus reseñas en redes.`;
-    } else {
-      return `Hola! Para que puedas publicarlo y empezar a usarlo, el sistema completo tiene un valor de $X. ¿Te interesa?`;
+  // Template States
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [customMessage, setCustomMessage] = useState<string>('');
+  const [isManagingTemplates, setIsManagingTemplates] = useState<boolean>(false);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  
+  const [formLabel, setFormLabel] = useState<string>('');
+  const [formText, setFormText] = useState<string>('');
+
+  // Load templates on mount or highestStage/name changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('crm_message_templates');
+      let loadedTemplates: MessageTemplate[] = [];
+      if (stored) {
+        try {
+          loadedTemplates = JSON.parse(stored);
+        } catch (e) {
+          console.error('Error parsing templates', e);
+        }
+      }
+      if (!loadedTemplates || loadedTemplates.length === 0) {
+        loadedTemplates = DEFAULT_TEMPLATES;
+        localStorage.setItem('crm_message_templates', JSON.stringify(DEFAULT_TEMPLATES));
+      }
+      setTemplates(loadedTemplates);
+
+      // Auto-select template based on highestStage
+      const bestMatch = loadedTemplates.find(t => t.stageTrigger && highestStage <= t.stageTrigger) 
+        || loadedTemplates[0];
+      if (bestMatch) {
+        setSelectedTemplateId(bestMatch.id);
+        setCustomMessage(replacePlaceholders(bestMatch.text, name));
+      }
+    }
+  }, [highestStage, name]);
+
+  const handleSelectTemplate = (id: string) => {
+    setSelectedTemplateId(id);
+    const tmpl = templates.find(t => t.id === id);
+    if (tmpl) {
+      setCustomMessage(replacePlaceholders(tmpl.text, name));
     }
   };
 
-  const waMessage = getWhatsAppMessage();
+  const handleMessageChange = (val: string) => {
+    setCustomMessage(val);
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta plantilla?')) {
+      const updated = templates.filter(t => t.id !== id);
+      setTemplates(updated);
+      localStorage.setItem('crm_message_templates', JSON.stringify(updated));
+      if (selectedTemplateId === id) {
+        const next = updated[0];
+        if (next) {
+          setSelectedTemplateId(next.id);
+          setCustomMessage(replacePlaceholders(next.text, name));
+        } else {
+          setSelectedTemplateId('');
+          setCustomMessage('');
+        }
+      }
+    }
+  };
+
+  const handleStartEdit = (tmpl: MessageTemplate) => {
+    setEditingTemplate(tmpl);
+    setFormLabel(tmpl.label);
+    setFormText(tmpl.text);
+  };
+
+  const handleStartAdd = () => {
+    setEditingTemplate({ id: '', label: '', text: '' });
+    setFormLabel('');
+    setFormText('');
+  };
+
+  const handleSaveTemplateForm = () => {
+    if (!formLabel.trim() || !formText.trim()) {
+      alert('Por favor completa todos los campos.');
+      return;
+    }
+
+    let updated: MessageTemplate[];
+    if (editingTemplate && editingTemplate.id !== '') {
+      updated = templates.map(t => 
+        t.id === editingTemplate.id 
+          ? { ...t, label: formLabel, text: formText } 
+          : t
+      );
+    } else {
+      const newTmpl: MessageTemplate = {
+        id: 't-' + Date.now(),
+        label: formLabel,
+        text: formText
+      };
+      updated = [...templates, newTmpl];
+    }
+
+    setTemplates(updated);
+    localStorage.setItem('crm_message_templates', JSON.stringify(updated));
+    
+    if (editingTemplate && selectedTemplateId === editingTemplate.id) {
+      setCustomMessage(replacePlaceholders(formText, name));
+    } else if (!editingTemplate || editingTemplate.id === '') {
+      const lastAdded = updated[updated.length - 1];
+      if (lastAdded) {
+        setSelectedTemplateId(lastAdded.id);
+        setCustomMessage(replacePlaceholders(lastAdded.text, name));
+      }
+    }
+
+    setEditingTemplate(null);
+    setFormLabel('');
+    setFormText('');
+  };
+
   const waUrl = phone
-    ? `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMessage)}`
+    ? `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(customMessage)}`
     : null;
 
   const handleWhatsAppEnviado = async () => {
@@ -158,8 +331,8 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     if (!error && data) {
       setOutreachList((prev) => [...prev, data as OutreachRecord]);
       setCurrentEstado('contactado');
-      // Update raw_leads so it moves to pipeline
-      await supabase.from('raw_leads').update({ crm_status: 'contactado', pipeline_stage: 'prospecto' }).eq('id', lead.id);
+      // Update raw_leads so it moves to pipeline using server action to bypass RLS
+      await updateLeadStatus(lead.id, 'contactado', 'prospecto').catch(console.error);
     } else if (error) {
       alert('Error registrando WhatsApp: ' + error.message);
     }
@@ -239,12 +412,8 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
         email: editEmail || null,
       };
 
-      const { error } = await supabase
-        .from('raw_leads')
-        .update({ contact_data: updatedContactData })
-        .eq('id', lead.id);
-
-      if (error) throw error;
+      // Using Server Action to bypass RLS on raw_leads table
+      await updateLeadContactData(lead.id, updatedContactData);
 
       setContactData(updatedContactData);
       setIsEditingContact(false);
@@ -292,14 +461,35 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
         {/* Action button cluster */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {lead.slug && (
-            <a
-              href={`https://leandrovenegas.cl/video/${lead.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              🌐 Ver Landing Page ↗
-            </a>
+            <>
+              <a
+                href={`https://leandrovenegas.cl/video/${lead.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                🌐 Ver Landing Page ↗
+              </a>
+              <button
+                onClick={copyLandingUrl}
+                style={{
+                  background: urlCopied ? 'rgba(52,168,83,0.15)' : '#2d2d2d',
+                  border: `1px solid ${urlCopied ? '#34a853' : '#444'}`,
+                  color: urlCopied ? '#34a853' : '#e8eaed',
+                  borderRadius: '8px',
+                  padding: '10px 18px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {urlCopied ? '✓ Copiado' : '🔗 Copiar URL'}
+              </button>
+            </>
           )}
           {lead.raw_data.url && (
             <a
@@ -571,7 +761,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
             {/* QUICK OUTREACH ACTIONS */}
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: '#9aa0a6', marginBottom: '6px' }}>Acciones de Contacto Rápido</label>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
                 {waUrl ? (
                   <>
                     <a
@@ -603,15 +793,227 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
                 )}
               </div>
 
-              {/* WHATSAPP MESSAGE PREVIEW */}
+              {/* WHATSAPP MESSAGE PREVIEW & TEMPLATES */}
               {phone && (
-                <div style={{ marginTop: '14px', background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: '8px', padding: '12px' }}>
-                  <span style={{ display: 'block', fontSize: '11px', color: '#9aa0a6', marginBottom: '4px', fontWeight: 500 }}>
-                    Mensaje pre-cargado (Etapa {highestStage || 'Inicial'}):
-                  </span>
-                  <p style={{ fontSize: '12px', color: '#e8eaed', margin: 0, fontStyle: 'italic' }}>
-                    &ldquo;{waMessage}&rdquo;
-                  </p>
+                <div style={{ marginTop: '14px', background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  
+                  {/* Selector & Settings Row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                      <span style={{ fontSize: '11px', color: '#9aa0a6', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        Plantilla:
+                      </span>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={(e) => handleSelectTemplate(e.target.value)}
+                        style={{
+                          flex: 1,
+                          background: '#1e1e1e',
+                          border: '1px solid #444',
+                          color: '#e8eaed',
+                          borderRadius: '6px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {templates.map((tmpl) => (
+                          <option key={tmpl.id} value={tmpl.id}>
+                            {tmpl.label}
+                          </option>
+                        ))}
+                        {templates.length === 0 && (
+                          <option value="">(Sin plantillas)</option>
+                        )}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                      style={{
+                        background: isManagingTemplates ? '#333' : 'transparent',
+                        border: '1px solid #444',
+                        color: '#8ab4f8',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      ⚙️ {isManagingTemplates ? 'Cerrar Ajustes' : 'Gestionar'}
+                    </button>
+                  </div>
+
+                  {/* Template Management Panel */}
+                  {isManagingTemplates && (
+                    <div style={{ background: '#1e1e1e', border: '1px solid #444', borderRadius: '6px', padding: '10px' }}>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#8ab4f8', fontWeight: 600, marginBottom: '8px' }}>
+                        Administrador de Plantillas
+                      </span>
+                      
+                      {/* List */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px', maxHeight: '160px', overflowY: 'auto' }}>
+                        {templates.map((tmpl) => (
+                          <div key={tmpl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#252525', padding: '6px 8px', borderRadius: '4px', border: '1px solid #333' }}>
+                            <span style={{ fontSize: '11.5px', color: '#e8eaed', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                              {tmpl.label}
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => handleStartEdit(tmpl)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px' }}
+                                title="Editar"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTemplate(tmpl.id)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px' }}
+                                title="Eliminar"
+                              >
+                                ❌
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {templates.length === 0 && (
+                          <span style={{ fontSize: '11px', color: '#666', fontStyle: 'italic', padding: '4px 0' }}>
+                            No hay plantillas personalizadas.
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Add Button */}
+                      {!editingTemplate && (
+                        <button
+                          onClick={handleStartAdd}
+                          style={{
+                            width: '100%',
+                            background: '#2d2d2d',
+                            border: '1px dashed #555',
+                            color: '#bdc1c6',
+                            borderRadius: '4px',
+                            padding: '5px',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            textAlign: 'center'
+                          }}
+                        >
+                          ➕ Agregar Plantilla
+                        </button>
+                      )}
+
+                      {/* Add/Edit Form */}
+                      {editingTemplate && (
+                        <div style={{ marginTop: '8px', borderTop: '1px solid #333', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ fontSize: '10.5px', color: '#9aa0a6', fontWeight: 600 }}>
+                            {editingTemplate.id ? 'Editar Plantilla' : 'Nueva Plantilla'}
+                          </span>
+                          <div>
+                            <input
+                              type="text"
+                              value={formLabel}
+                              onChange={(e) => setFormLabel(e.target.value)}
+                              placeholder="Nombre/Etapa (Ej: Primer Contacto)"
+                              style={{
+                                width: '100%',
+                                background: '#252525',
+                                border: '1px solid #444',
+                                color: '#e8eaed',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '11.5px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <textarea
+                              value={formText}
+                              onChange={(e) => setFormText(e.target.value)}
+                              placeholder="Hola! Escribe tu mensaje aquí..."
+                              rows={3}
+                              style={{
+                                width: '100%',
+                                background: '#252525',
+                                border: '1px solid #444',
+                                color: '#e8eaed',
+                                borderRadius: '4px',
+                                padding: '6px 8px',
+                                fontSize: '11.5px',
+                                outline: 'none',
+                                resize: 'vertical'
+                              }}
+                            />
+                            <span style={{ fontSize: '9px', color: '#80868b', marginTop: '2px', display: 'block' }}>
+                              Escribe <code>[]</code> o <code>( )</code> para reemplazar automáticamente con el nombre de la empresa.
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              onClick={handleSaveTemplateForm}
+                              style={{
+                                flex: 1,
+                                background: '#34a853',
+                                border: 'none',
+                                color: 'white',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              💾 Guardar
+                            </button>
+                            <button
+                              onClick={() => setEditingTemplate(null)}
+                              style={{
+                                background: '#2d2d2d',
+                                border: '1px solid #444',
+                                color: '#e8eaed',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '11px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Textarea containing final message preview */}
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#9aa0a6', marginBottom: '4px', fontWeight: 500 }}>
+                      Mensaje pre-cargado (personalizable):
+                    </span>
+                    <textarea
+                      value={customMessage}
+                      onChange={(e) => handleMessageChange(e.target.value)}
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        background: '#1e1e1e',
+                        border: '1px solid #444',
+                        borderRadius: '6px',
+                        color: '#e8eaed',
+                        padding: '8px 10px',
+                        fontSize: '12px',
+                        resize: 'vertical',
+                        outline: 'none',
+                        fontStyle: 'italic',
+                        lineHeight: '1.4'
+                      }}
+                    />
+                  </div>
+
                 </div>
               )}
             </div>

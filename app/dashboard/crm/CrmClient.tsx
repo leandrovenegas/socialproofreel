@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { updateLeadStatus, updateLeadScore } from './actions';
 
 interface RawLeadItem {
   id: string;
@@ -300,12 +301,9 @@ export default function CrmClient({
       return updated.sort((a, b) => (b.score ?? 50) - (a.score ?? 50));
     });
 
-    const { error } = await supabase
-      .from('raw_leads')
-      .update({ score: validatedScore })
-      .eq('id', leadId);
-
-    if (error) {
+    try {
+      await updateLeadScore(leadId, validatedScore);
+    } catch (error) {
       console.error('Error updating lead score:', error);
     }
   };
@@ -323,12 +321,9 @@ export default function CrmClient({
       updateData.pipeline_stage = null;
     }
 
-    const { error } = await supabase
-      .from('raw_leads')
-      .update(updateData)
-      .eq('id', leadId);
-
-    if (error) {
+    try {
+      await updateLeadStatus(leadId, status, stage);
+    } catch (error) {
       console.error(`Error updating lead crm_status to ${status}:`, error);
     }
   };
@@ -339,12 +334,9 @@ export default function CrmClient({
       prev.map((l) => (l.id === leadId ? { ...l, pipeline_stage: newStage as any } : l))
     );
 
-    const { error } = await supabase
-      .from('raw_leads')
-      .update({ pipeline_stage: newStage })
-      .eq('id', leadId);
-
-    if (error) {
+    try {
+      await updateLeadStatus(leadId, undefined as any, newStage); // Pass undefined for crm_status if we only update stage
+    } catch (error) {
       console.error('Error updating pipeline stage:', error);
     }
   };
@@ -797,6 +789,30 @@ Dime qué te parece.`;
                         >
                           📈 GA4
                         </a>
+
+                        {/* Google Maps Button */}
+                        {lead.raw_data.url && (
+                          <a
+                            href={lead.raw_data.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: 'rgba(138, 180, 248, 0.1)',
+                              border: '1px solid rgba(138, 180, 248, 0.3)',
+                              color: '#8ab4f8',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              textDecoration: 'none',
+                              fontWeight: 500,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            📍 Google Maps
+                          </a>
+                        )}
 
                       </div>
                     </td>
