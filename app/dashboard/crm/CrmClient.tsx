@@ -189,11 +189,26 @@ export default function CrmClient({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  const navigate = (params: { page?: number; rubro?: string }) => {
+  const navigate = (params: { page?: number; rubro?: string; filter?: string }) => {
     const p = new URLSearchParams();
     p.set('page', String(params.page ?? currentPage));
     p.set('rubro', params.rubro ?? currentRubro);
+    
+    const f = params.filter !== undefined ? params.filter : (searchParams.get('filter') || 'all');
+    if (f !== 'all') {
+      p.set('filter', f);
+    }
     startTransition(() => router.push(`${pathname}?${p.toString()}`));
+  };
+
+  const activeFilter = searchParams.get('filter') || 'all';
+
+  const handleFilterClick = (filterId: string) => {
+    if (activeFilter === filterId) {
+      navigate({ filter: 'all', page: 1 });
+    } else {
+      navigate({ filter: filterId, page: 1 });
+    }
   };
 
   const copyLandingUrl = (slug: string | undefined, id: string) => {
@@ -366,10 +381,56 @@ export default function CrmClient({
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500 }}>
-            {viewType === 'sin_contactar' && 'CRM - Leads Sin Contactar'}
-            {viewType === 'pipeline' && 'CRM - Pipeline de Contactados'}
-            {viewType === 'descartados' && 'CRM - Archivo Muerto (Descartados)'}
+          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>
+              {viewType === 'sin_contactar' && 'CRM - Leads Sin Contactar'}
+              {viewType === 'pipeline' && 'CRM - Pipeline de Contactados'}
+              {viewType === 'descartados' && 'CRM - Archivo Muerto (Descartados)'}
+            </span>
+            {activeFilter !== 'all' && (
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: '#8ab4f8',
+                  background: 'rgba(138, 180, 248, 0.1)',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(138, 180, 248, 0.2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 600,
+                }}
+              >
+                Filtrando: {
+                  activeFilter === 'video_ready' ? 'Videos Listos ✅' :
+                  activeFilter === 'contacted_wa' ? 'Contactados WA 💬' :
+                  activeFilter === 'landing_opened' ? 'Landings Abiertas 🌐' :
+                  activeFilter === 'closed' ? 'Clientes Cerrados 🏆' : ''
+                }
+                <span
+                  onClick={() => handleFilterClick(activeFilter)}
+                  style={{
+                    cursor: 'pointer',
+                    color: '#e8eaed',
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    marginLeft: '2px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.1)',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                >
+                  ✕
+                </span>
+              </span>
+            )}
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9aa0a6' }}>
             {totalCount} prospectos en total · Página {currentPage} de {totalPages}
@@ -416,20 +477,47 @@ export default function CrmClient({
       {/* PIPELINE GENERAL STATS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
         {[
-          { label: 'Total Leads', value: stats.totalLeads, color: '#8ab4f8', icon: '👥' },
-          { label: 'Videos Listos', value: stats.videoReady, color: '#34a853', icon: '✅' },
-          { label: 'Contactados WA', value: stats.contacted, color: '#4285f4', icon: '💬' },
-          { label: 'Landings Abiertas', value: stats.landingsOpened, color: '#f4b400', icon: '🌐' },
-          { label: 'Clientes Cerrados', value: stats.closed, color: '#ea4335', icon: '🏆' },
-        ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontSize: '24px' }}>{icon}</span>
-            <div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: '11px', color: '#9aa0a6', marginTop: '2px' }}>{label}</div>
+          { id: 'all', label: 'Total Leads', value: stats.totalLeads, color: '#8ab4f8', icon: '👥' },
+          { id: 'video_ready', label: 'Videos Listos', value: stats.videoReady, color: '#34a853', icon: '✅' },
+          { id: 'contacted_wa', label: 'Contactados WA', value: stats.contacted, color: '#4285f4', icon: '💬' },
+          { id: 'landing_opened', label: 'Landings Abiertas', value: stats.landingsOpened, color: '#f4b400', icon: '🌐' },
+          { id: 'closed', label: 'Clientes Cerrados', value: stats.closed, color: '#ea4335', icon: '🏆' },
+        ].map(({ id, label, value, color, icon }) => {
+          const isActive = activeFilter === id;
+          return (
+            <div
+              key={label}
+              onClick={() => handleFilterClick(id)}
+              style={{
+                background: isActive ? 'rgba(255, 255, 255, 0.03)' : '#1e1e1e',
+                border: isActive ? `2px solid ${color}` : '1px solid #333',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: isActive ? `0 4px 15px -3px ${color}33` : 'none',
+                transform: isActive ? 'translateY(-2px)' : 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = color;
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = isActive ? color : '#333';
+                e.currentTarget.style.background = isActive ? 'rgba(255, 255, 255, 0.03)' : '#1e1e1e';
+              }}
+            >
+              <span style={{ fontSize: '24px' }}>{icon}</span>
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color }}>{value}</div>
+                <div style={{ fontSize: '11px', color: '#9aa0a6', marginTop: '2px' }}>{label}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* FILTER BAR */}

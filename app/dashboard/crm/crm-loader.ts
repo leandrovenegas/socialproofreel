@@ -4,18 +4,30 @@ const PAGE_SIZE = 50;
 
 export async function fetchCrmData(
   status: 'sin_contactar' | 'contactado' | 'descartado',
-  searchParams: { page?: string; rubro?: string }
+  searchParams: { page?: string; rubro?: string; filter?: string }
 ) {
   const page = Math.max(1, parseInt(searchParams.page || '1'));
   const rubro = searchParams.rubro || 'all';
+  const filter = searchParams.filter || 'all';
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   // 1. Fetch raw_leads with pagination and filters
+  let selectQuery = '*, video_queue(status, defectuoso, bunny_url), outreach(*)';
+  if (filter === 'video_ready') {
+    selectQuery = '*, video_queue!inner(status, defectuoso, bunny_url), outreach(*)';
+  } else if (filter === 'contacted_wa') {
+    selectQuery = '*, video_queue(status, defectuoso, bunny_url), outreach!inner(*)';
+  } else if (filter === 'landing_opened') {
+    selectQuery = '*, video_queue(status, defectuoso, bunny_url), outreach!inner(*)';
+  } else if (filter === 'closed') {
+    selectQuery = '*, video_queue(status, defectuoso, bunny_url), outreach!inner(*)';
+  }
+
   let query = supabase
     .from('raw_leads')
-    .select('*, video_queue(status, defectuoso, bunny_url), outreach(*)', { count: 'estimated' });
+    .select(selectQuery, { count: 'exact' });
 
   if (status === 'sin_contactar') {
     query = query.or('crm_status.eq.sin_contactar,crm_status.is.null');
@@ -25,6 +37,22 @@ export async function fetchCrmData(
 
   if (rubro !== 'all') {
     query = query.eq('rubro', rubro);
+  }
+
+  if (filter === 'video_ready') {
+    query = query
+      .eq('video_queue.status', 'completed')
+      .eq('video_queue.defectuoso', false);
+  } else if (filter === 'contacted_wa') {
+    query = query
+      .eq('outreach.canal', 'whatsapp')
+      .eq('outreach.estado', 'contactado');
+  } else if (filter === 'landing_opened') {
+    query = query
+      .eq('outreach.canal', 'web');
+  } else if (filter === 'closed') {
+    query = query
+      .eq('outreach.estado', 'cerrado');
   }
 
   // Order by score DESC, and fallback to created_at DESC
@@ -44,21 +72,70 @@ export async function fetchCrmData(
 
   const rubrosList = rubrosRows?.map((r) => r.nombre).filter(Boolean) as string[] || [];
 
-  // 3. Compute stats for general indicators
+  // Helper to fetch filter-scoped counts
+  const getFilterCount = async (filterName: 'video_ready' | 'contacted_wa' | 'landing_opened' | 'closed'): Promise<number> => {
+    let q = supabase.from('raw_leads').select('id', { count: 'exact', head: true });
+    
+    if (status === 'sin_contactar') {
+      q = q.or('crm_status.eq.sin_contactar,crm_status.is.null');
+    } else {
+      q = q.eq('crm_status', status);
+    }
+    
+    if (rubro !== 'all') {
+      q = q.eq('rubro', rubro);
+    }
+
+    if (filterName === 'video_ready') {
+      q = q.select('id, video_queue!inner(status, defectuoso)', { count: 'exact', head: true })
+        .eq('video_queue.status', 'completed')
+        .eq('video_queue.defectuoso', false);
+    } else if (filterName === 'contacted_wa') {
+      q = q.select('id, outreach!inner(canal, estado)', { count: 'exact', head: true })
+        .eq('outreach.canal', 'whatsapp')
+        .eq('outreach.estado', 'contactado');
+    } else if (filterName === 'landing_opened') {
+      q = q.select('id, outreach!inner(canal)', { count: 'exact', head: true })
+        .eq('outreach.canal', 'web');
+    } else if (filterName === 'closed') {
+      q = q.select('id, outreach!inner(estado)', { count: 'exact', head: true })
+        .eq('outreach.estado', 'cerrado');
+    }
+
+    const { count: cCount, error: countErr } = await q;
+    if (countErr) {
+      console.error(`Error counting ${filterName}:`, countErr);
+      return 0;
+    }
+    return cCount || 0;
+  };
+
+  // Get total count (unfiltered for the current status and rubro)
+  let totalCountQuery = supabase.from('raw_leads').select('id', { count: 'exact', head: true });
+  if (status === 'sin_contactar') {
+    totalCountQuery = totalCountQuery.or('crm_status.eq.sin_contactar,crm_status.is.null');
+  } else {
+    totalCountQuery = totalCountQuery.eq('crm_status', status);
+  }
+  if (rubro !== 'all') {
+    totalCountQuery = totalCountQuery.eq('rubro', rubro);
+  }
+  const { count: totalLeadsCount } = await totalCountQuery;
+
   const [
-    { count: videoReadyCount },
-    { count: contactedCount },
-    { count: landingsOpenedCount },
-    { count: closedCount }
+    videoReadyCount,
+    contactedCount,
+    landingsOpenedCount,
+    closedCount
   ] = await Promise.all([
-    supabase.from('video_queue').select('*', { count: 'estimated', head: true }).eq('status', 'completed').eq('defectuoso', false),
-    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('canal', 'whatsapp').eq('estado', 'contactado'),
-    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('canal', 'web'),
-    supabase.from('outreach').select('*', { count: 'estimated', head: true }).eq('estado', 'cerrado'),
+    getFilterCount('video_ready'),
+    getFilterCount('contacted_wa'),
+    getFilterCount('landing_opened'),
+    getFilterCount('closed'),
   ]);
 
   const stats = {
-    totalLeads: count || 0,
+    totalLeads: totalLeadsCount || 0,
     videoReady: videoReadyCount || 0,
     contacted: contactedCount || 0,
     landingsOpened: landingsOpenedCount || 0,

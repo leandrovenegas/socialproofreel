@@ -5,7 +5,7 @@ import { fetchCrmData } from '../crm-loader';
 export const revalidate = 0; // Disable static rendering
 
 export default async function PipelinePage(props: {
-  searchParams: Promise<{ page?: string; rubro?: string }>;
+  searchParams: Promise<{ page?: string; rubro?: string; filter?: string }>;
 }) {
   const resolvedSearchParams = await props.searchParams;
   
