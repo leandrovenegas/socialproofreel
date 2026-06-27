@@ -14,23 +14,25 @@ export async function fetchCrmData(
   const to = from + PAGE_SIZE - 1;
 
   // 1. Fetch raw_leads with pagination and filters
-  let query = supabase.from('raw_leads');
+  let query = supabase.from('raw_leads').select('*');
 
-  if (filter === 'all') {
-    query = query.select('*');
-  } else if (filter === 'video_ready') {
-    query = query.select('*, video_queue!inner(status, defectuoso)')
+  if (filter === 'video_ready') {
+    query = supabase.from('raw_leads')
+      .select('*, video_queue!inner(status, defectuoso)')
       .eq('video_queue.status', 'completed')
       .eq('video_queue.defectuoso', false);
   } else if (filter === 'contacted_wa') {
-    query = query.select('*, outreach!inner(canal, estado)')
+    query = supabase.from('raw_leads')
+      .select('*, outreach!inner(canal, estado)')
       .eq('outreach.canal', 'whatsapp')
       .eq('outreach.estado', 'contactado');
   } else if (filter === 'landing_opened') {
-    query = query.select('*, outreach!inner(canal)')
+    query = supabase.from('raw_leads')
+      .select('*, outreach!inner(canal)')
       .eq('outreach.canal', 'web');
   } else if (filter === 'closed') {
-    query = query.select('*, outreach!inner(estado)')
+    query = supabase.from('raw_leads')
+      .select('*, outreach!inner(estado)')
       .eq('outreach.estado', 'cerrado');
   }
 
@@ -56,7 +58,7 @@ export async function fetchCrmData(
   // 1.5 Fetch related video_queue and outreach records in parallel for just the page leads and merge in JS
   let rawLeads: any[] = [];
   if (leadsOnly && leadsOnly.length > 0) {
-    const leadIds = leadsOnly.map((l) => l.id);
+    const leadIds = leadsOnly.map((l: any) => l.id);
     const [
       { data: videoData, error: vqErr },
       { data: outreachData, error: outErr }
@@ -68,11 +70,11 @@ export async function fetchCrmData(
     if (vqErr) console.error('Error fetching video_queue for page:', vqErr);
     if (outErr) console.error('Error fetching outreach for page:', outErr);
 
-    rawLeads = leadsOnly.map((lead) => {
+    rawLeads = leadsOnly.map((lead: any) => {
       return {
         ...lead,
-        video_queue: videoData ? videoData.filter((v) => v.raw_lead_id === lead.id) : [],
-        outreach: outreachData ? outreachData.filter((o) => o.lead_id === lead.id) : []
+        video_queue: videoData ? videoData.filter((v: any) => v.raw_lead_id === lead.id) : [],
+        outreach: outreachData ? outreachData.filter((o: any) => o.lead_id === lead.id) : []
       };
     });
   }
@@ -83,7 +85,7 @@ export async function fetchCrmData(
     .select('nombre')
     .order('nombre');
 
-  const rubrosList = rubrosRows?.map((r) => r.nombre).filter(Boolean) as string[] || [];
+  const rubrosList = rubrosRows?.map((r: any) => r.nombre).filter(Boolean) as string[] || [];
 
   // Helper to fetch filter-scoped counts starting from the child table for high performance
   const getFilterCount = async (filterName: 'video_ready' | 'contacted_wa' | 'landing_opened' | 'closed'): Promise<number> => {
