@@ -438,6 +438,48 @@ export default function CrmClient({
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <Link
+            href="/dashboard/crm/bot"
+            style={{
+              textDecoration: 'none',
+              background: 'rgba(138, 180, 248, 0.1)',
+              border: '1px solid rgba(138, 180, 248, 0.25)',
+              color: '#8ab4f8',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(138, 180, 248, 0.18)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(138, 180, 248, 0.1)'}
+          >
+            🤖 Control del Bot
+          </Link>
+          <Link
+            href="/dashboard/crm/queue"
+            style={{
+              textDecoration: 'none',
+              background: 'rgba(129, 201, 149, 0.1)',
+              border: '1px solid rgba(129, 201, 149, 0.25)',
+              color: '#81c995',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(129, 201, 149, 0.18)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(129, 201, 149, 0.1)'}
+          >
+            📋 Cola de Envío
+          </Link>
+          <Link
             href="/dashboard/queue"
             style={{ textDecoration: 'none', background: '#1e1e1e', border: '1px solid #333', color: '#e8eaed', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}
           >

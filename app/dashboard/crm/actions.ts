@@ -57,3 +57,21 @@ export async function updateLeadScore(leadId: string, score: number) {
   if (error) throw new Error(error.message);
   return true;
 }
+
+export async function updateLeadMessageOverride(
+  leadId: string, 
+  messageOverride: string | null,
+  messageOverride2: string | null
+) {
+  const supabase = getServiceSupabase();
+  const { error } = await supabase
+    .from('raw_leads')
+    .update({ 
+      message_override: messageOverride,
+      message_override_2: messageOverride2
+    })
+    .eq('id', leadId);
+
+  if (error) throw new Error(error.message);
+  return true;
+}

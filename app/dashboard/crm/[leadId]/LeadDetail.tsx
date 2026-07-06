@@ -27,18 +27,25 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
     label: 'Oferta Comercial (Etapa 5-6)',
     text: 'Hola! Para que puedas publicarlo y empezar a usarlo en [], el sistema completo tiene un valor de $X. ¿Te interesa?',
     stageTrigger: 6
+  },
+  {
+    id: 't-4',
+    label: 'Mensaje 2 (Video)',
+    text: 'Aquí está: https://leandrovenegas.cl/video/{slug} gratis. Y si tienes otros videos grabados sin editar, en 24-48h te los dejo listos. saludos. ',
+    stageTrigger: 3
   }
 ];
 
-const replacePlaceholders = (text: string, companyName: string) => {
+const replacePlaceholders = (text: string, companyName: string, slug?: string) => {
   return text
     .replace(/\[\s*\]/g, companyName)
-    .replace(/\(\s*\)/g, companyName);
+    .replace(/\(\s*\)/g, companyName)
+    .replace(/\{\s*slug\s*\}/gi, slug || '');
 };
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { updateLeadContactData, updateLeadStatus } from '../actions';
+import { updateLeadContactData, updateLeadStatus, updateLeadMessageOverride } from '../actions';
 
 interface VideoQueueItem {
   id: string;
@@ -78,6 +85,8 @@ interface LeadDetailProps {
     } | null;
     created_at: string;
     video_queue?: VideoQueueItem[];
+    message_override?: string | null;
+    message_override_2?: string | null;
   };
   initialOutreach: OutreachRecord[];
 }
@@ -157,6 +166,9 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const [notes, setNotes] = useState<string>('');
   const [savingNotes, setSavingNotes] = useState<boolean>(false);
   const [currentEstado, setCurrentEstado] = useState<string>(mainRecord?.estado || 'pendiente');
+  const [messageOverride, setMessageOverride] = useState<string>(lead.message_override || '');
+  const [messageOverride2, setMessageOverride2] = useState<string>(lead.message_override_2 || '');
+  const [savingOverride, setSavingOverride] = useState<boolean>(false);
 
   // Compute stages for pipeline visualization
   const jobs = lead.video_queue || [];
@@ -201,22 +213,84 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const [formLabel, setFormLabel] = useState<string>('');
   const [formText, setFormText] = useState<string>('');
 
-  // Load templates on mount or highestStage/name changes
-  useEffect(() => {
+  // Save templates to DB and localStorage
+  const saveTemplatesToDbAndStorage = async (updated: MessageTemplate[]) => {
+    setTemplates(updated);
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('crm_message_templates');
+      localStorage.setItem('crm_message_templates', JSON.stringify(updated));
+    }
+
+    try {
+      // Fetch current settings config
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .single();
+      
+      const currentConfig = settingsData?.config || {};
+      const updatedConfig = {
+        ...currentConfig,
+        crm_templates: updated
+      };
+
+      await supabase
+        .from('settings')
+        .upsert({
+          id: '00000000-0000-0000-0000-000000000001',
+          primary_color: settingsData?.primary_color || '#FBBC04',
+          font_family: settingsData?.font_family || "'Roboto', sans-serif",
+          blur_level: settingsData?.blur_level || 10,
+          config: updatedConfig,
+          updated_at: new Date().toISOString()
+        });
+    } catch (err) {
+      console.error('Error saving templates to database settings:', err);
+    }
+  };
+
+  // Load templates on mount or lead changes
+  useEffect(() => {
+    const loadTemplatesAndSelect = async () => {
       let loadedTemplates: MessageTemplate[] = [];
-      if (stored) {
-        try {
-          loadedTemplates = JSON.parse(stored);
-        } catch (e) {
-          console.error('Error parsing templates', e);
+
+      // 1. Try to load from Supabase database settings
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('config')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .single();
+        
+        if (data?.config && Array.isArray((data.config as any).crm_templates)) {
+          loadedTemplates = (data.config as any).crm_templates;
+        }
+      } catch (err) {
+        console.error('Error fetching templates from DB:', err);
+      }
+
+      // 2. Fallback to localStorage if database fetch failed or returned nothing
+      if (!loadedTemplates || loadedTemplates.length === 0) {
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('crm_message_templates');
+          if (stored) {
+            try {
+              loadedTemplates = JSON.parse(stored);
+            } catch (e) {
+              console.error('Error parsing templates from localStorage', e);
+            }
+          }
         }
       }
+
+      // 3. Fallback to DEFAULT_TEMPLATES if both failed
       if (!loadedTemplates || loadedTemplates.length === 0) {
         loadedTemplates = DEFAULT_TEMPLATES;
-        localStorage.setItem('crm_message_templates', JSON.stringify(DEFAULT_TEMPLATES));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('crm_message_templates', JSON.stringify(DEFAULT_TEMPLATES));
+        }
       }
+
       setTemplates(loadedTemplates);
 
       // Auto-select template based on highestStage
@@ -224,16 +298,19 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
         || loadedTemplates[0];
       if (bestMatch) {
         setSelectedTemplateId(bestMatch.id);
-        setCustomMessage(replacePlaceholders(bestMatch.text, name));
+        setCustomMessage(replacePlaceholders(bestMatch.text, name, lead.slug));
       }
-    }
-  }, [highestStage, name]);
+    };
+
+    loadTemplatesAndSelect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id]);
 
   const handleSelectTemplate = (id: string) => {
     setSelectedTemplateId(id);
     const tmpl = templates.find(t => t.id === id);
     if (tmpl) {
-      setCustomMessage(replacePlaceholders(tmpl.text, name));
+      setCustomMessage(replacePlaceholders(tmpl.text, name, lead.slug));
     }
   };
 
@@ -241,16 +318,15 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     setCustomMessage(val);
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar esta plantilla?')) {
       const updated = templates.filter(t => t.id !== id);
-      setTemplates(updated);
-      localStorage.setItem('crm_message_templates', JSON.stringify(updated));
+      await saveTemplatesToDbAndStorage(updated);
       if (selectedTemplateId === id) {
         const next = updated[0];
         if (next) {
           setSelectedTemplateId(next.id);
-          setCustomMessage(replacePlaceholders(next.text, name));
+          setCustomMessage(replacePlaceholders(next.text, name, lead.slug));
         } else {
           setSelectedTemplateId('');
           setCustomMessage('');
@@ -271,7 +347,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     setFormText('');
   };
 
-  const handleSaveTemplateForm = () => {
+  const handleSaveTemplateForm = async () => {
     if (!formLabel.trim() || !formText.trim()) {
       alert('Por favor completa todos los campos.');
       return;
@@ -293,16 +369,15 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
       updated = [...templates, newTmpl];
     }
 
-    setTemplates(updated);
-    localStorage.setItem('crm_message_templates', JSON.stringify(updated));
+    await saveTemplatesToDbAndStorage(updated);
     
     if (editingTemplate && selectedTemplateId === editingTemplate.id) {
-      setCustomMessage(replacePlaceholders(formText, name));
+      setCustomMessage(replacePlaceholders(formText, name, lead.slug));
     } else if (!editingTemplate || editingTemplate.id === '') {
       const lastAdded = updated[updated.length - 1];
       if (lastAdded) {
         setSelectedTemplateId(lastAdded.id);
-        setCustomMessage(replacePlaceholders(lastAdded.text, name));
+        setCustomMessage(replacePlaceholders(lastAdded.text, name, lead.slug));
       }
     }
 
@@ -756,6 +831,74 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
               >
                 {savingNotes ? 'Guardando...' : '💾 Guardar Notas'}
               </button>
+            </div>
+
+            {/* MENSAJE PERSONALIZADO OUTREACH (OVERRIDE) */}
+            <div style={{ marginBottom: '20px', borderTop: '1px solid #333', paddingTop: '15px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#e8eaed', marginBottom: '8px', fontWeight: 600 }}>
+                💬 Mensajes Outreach Personalizados (Cola)
+              </label>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#9aa0a6', marginBottom: '4px' }}>
+                    Mensaje 1 (Caption de la Imagen)
+                  </label>
+                  <textarea
+                    value={messageOverride}
+                    onChange={(e) => setMessageOverride(e.target.value)}
+                    placeholder="Hola [nombre], este mensaje personalizado sobrescribirá el caption..."
+                    rows={2}
+                    style={{ width: '100%', background: '#2d2d2d', border: '1px solid #444', borderRadius: '8px', color: '#e8eaed', padding: '8px 10px', fontSize: '12.5px', resize: 'vertical', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#9aa0a6', marginBottom: '4px' }}>
+                    Mensaje 2 (Texto Separado)
+                  </label>
+                  <textarea
+                    value={messageOverride2}
+                    onChange={(e) => setMessageOverride2(e.target.value)}
+                    placeholder="🎬 Aquí está: https://leandrovenegas.cl/video/{slug}..."
+                    rows={2}
+                    style={{ width: '100%', background: '#2d2d2d', border: '1px solid #444', borderRadius: '8px', color: '#e8eaed', padding: '8px 10px', fontSize: '12.5px', resize: 'vertical', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  onClick={async () => {
+                    setSavingOverride(true);
+                    try {
+                      await updateLeadMessageOverride(lead.id, messageOverride.trim() || null, messageOverride2.trim() || null);
+                      alert('Mensajes personalizados guardados correctamente.');
+                    } catch (e: any) {
+                      alert('Error al guardar mensajes: ' + e.message);
+                    } finally {
+                      setSavingOverride(false);
+                    }
+                  }}
+                  disabled={savingOverride}
+                  style={{ background: 'rgba(138, 180, 248, 0.1)', border: '1px solid rgba(138, 180, 248, 0.25)', color: '#8ab4f8', borderRadius: '6px', padding: '8px 16px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  {savingOverride ? 'Guardando...' : '💾 Guardar Mensajes'}
+                </button>
+                {(messageOverride || messageOverride2) && (
+                  <button
+                    onClick={async () => {
+                      if(confirm('¿Eliminar mensajes personalizados? Usará la plantilla general.')) {
+                        setMessageOverride('');
+                        setMessageOverride2('');
+                        await updateLeadMessageOverride(lead.id, null, null);
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#f28b82', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* QUICK OUTREACH ACTIONS */}
