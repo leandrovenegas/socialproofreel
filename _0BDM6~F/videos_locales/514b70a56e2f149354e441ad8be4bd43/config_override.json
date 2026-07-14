@@ -1,0 +1,70 @@
+{
+  "layout": "Center",
+  "effects": {
+    "card_damping": 14,
+    "stagger_delay": 5,
+    "stars_damping": 10,
+    "fade_in_duration": 23,
+    "card_slide_distance": 60,
+    "stars_initial_scale": 0.35
+  },
+  "blur_level": 4,
+  "avatar_size": 200,
+  "font_family": "'Roboto', sans-serif",
+  "business_name": {
+    "visible": false,
+    "text_size": 80,
+    "show_rating": false,
+    "rating_text_size": 48
+  },
+  "crm_templates": [
+    {
+      "id": "t-1",
+      "text": "Hola! Vi que tienes reseñas en Google y te generé un video gratis con ellas para []. ¿Lo quieres ver?",
+      "label": "Contacto Inicial (Etapa 1-2)",
+      "stageTrigger": 2
+    },
+    {
+      "id": "t-2",
+      "text": "Hola! ¿Pudiste ver el video? Lo hice especialmente para ( ). Con esto puedes conseguir más clientes mostrando tus reseñas en redes.",
+      "label": "Seguimiento Video (Etapa 3-4)",
+      "stageTrigger": 4
+    },
+    {
+      "id": "t-3",
+      "text": "Hola! Para que puedas publicarlo y empezar a usarlo en [], el sistema completo tiene un valor de $X. ¿Te interesa?",
+      "label": "Oferta Comercial (Etapa 5-6)",
+      "stageTrigger": 6
+    },
+    {
+      "id": "t-1783149709422",
+      "text": "hola11",
+      "label": "HOLAAAA"
+    }
+  ],
+  "primary_color": "#FBBC04",
+  "component_order": [
+    {
+      "id": "avatar",
+      "label": "Avatar",
+      "visible": true
+    },
+    {
+      "id": "stars",
+      "label": "Estrellas",
+      "visible": true
+    },
+    {
+      "id": "review_text",
+      "label": "Texto de Reseña",
+      "visible": true
+    },
+    {
+      "id": "reviewer_name",
+      "label": "Nombre del Autor",
+      "visible": true
+    }
+  ],
+  "review_text_size": 60,
+  "reviewer_name_size": 48
+}

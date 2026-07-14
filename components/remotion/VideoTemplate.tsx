@@ -49,6 +49,7 @@ export interface VideoTemplateMetadata {
   business_name: string;
   overall_rating: number;
   background_base64?: string;
+  backgrounds_base64?: string[];
   
   // Backend worker: Multiple reviews
   reviews?: ReviewItem[];
@@ -77,13 +78,8 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
   const avatarSize = Math.round(200 * ((config.avatar_size ?? 140) / 100));
   const reviewTextSize = config.review_text_size || 34;
   const reviewerNameSize = config.reviewer_name_size || 30;
-  // Defensive defaults for effects – prevents "inputRange must contain only numbers"
-  const fx: EffectsConfig = Object.assign(
-    { fade_in_duration: 20, card_slide_distance: 60, card_damping: 14, stars_initial_scale: 0.3, stars_damping: 10, stagger_delay: 5 },
-    config.effects || {}
-  ) as EffectsConfig;
 
-  // Defensive defaults for component_order — must be declared before visibleItems
+  // Defensive defaults for component_order
   const componentOrder: ComponentItem[] = config.component_order || [
     { id: 'avatar', label: 'Avatar', visible: true },
     { id: 'stars', label: 'Estrellas', visible: true },
@@ -91,11 +87,16 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
     { id: 'reviewer_name', label: 'Nombre del Autor', visible: true },
   ];
 
-  // Defensive defaults for business_name — must be declared before JSX
-  const biz: BusinessNameConfig = Object.assign(
-    { visible: true, show_rating: true, text_size: 52, rating_text_size: 32 },
-    config.business_name || {}
-  ) as BusinessNameConfig;
+  // Defensive defaults for effects – prevents "inputRange must contain only numbers"
+  const fx: EffectsConfig = {
+    fade_in_duration: 20,
+    card_slide_distance: 60,
+    card_damping: 14,
+    stars_initial_scale: 0.3,
+    stars_damping: 10,
+    stagger_delay: 5,
+    ...(config.effects || {}),
+  };
 
   // Resolve multiple reviews or single fallback
   const reviews = metadata.reviews || [
@@ -226,7 +227,7 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
               fontWeight: 400, color: 'rgba(255,255,255,0.95)', letterSpacing: '0.01em',
               margin: 0, padding: '0 10px',
             }}>
-              &ldquo;{review.review_text}&rdquo;
+              &ldquo;{review.review_text.length > 150 ? review.review_text.slice(0, 150).trimEnd() + '...' : review.review_text}&rdquo;
             </p>
           </div>
         );
@@ -246,13 +247,29 @@ export const VideoTemplate: React.FC<VideoTemplateProps> = ({ config, metadata }
     }
   };
 
-  // (componentOrder and biz are declared above, near fx)
+  // Defensive defaults for business_name
+  const biz: BusinessNameConfig = {
+    visible: true,
+    show_rating: true,
+    text_size: 52,
+    rating_text_size: 32,
+    ...(config.business_name || {}),
+  };
+
+
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#202124', overflow: 'hidden', fontFamily }}>
 
       {/* ─── Background ─── */}
-      {metadata.background_base64 ? (
+      {metadata.backgrounds_base64 && metadata.backgrounds_base64.length > 0 ? (
+        <AbsoluteFill>
+          <img src={metadata.backgrounds_base64[reviewIndex % metadata.backgrounds_base64.length]} style={{
+            width: '100%', height: '100%', objectFit: 'cover',
+            filter: `blur(${blurLevel}px) brightness(0.3)`, transform: 'scale(1.15)',
+          }} />
+        </AbsoluteFill>
+      ) : metadata.background_base64 ? (
         <AbsoluteFill>
           <img src={metadata.background_base64} style={{
             width: '100%', height: '100%', objectFit: 'cover',

@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
+import { getEditorTemplates, saveEditorTemplate, getLocalVideoPath } from './actions';
 import type { ComponentItem, VideoTemplateConfig, EffectsConfig, BusinessNameConfig } from '@/components/remotion/VideoTemplate';
 
 const PlayerComponent = dynamic(
@@ -54,21 +55,157 @@ export default function EditorClient() {
     effects: DEFAULT_EFFECTS,
   });
 
-  useEffect(() => {
-  const loadConfig = async () => {
+  const [latestVideo, setLatestVideo] = useState<any>(null);
+  const [isLoadingVideo, setIsLoadingVideo] = useState(true);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
     const { data, error } = await supabase
+      .from('video_queue')
+      .select('*')
+      .eq('status', 'completed')
+      .ilike('business_name', `%${query}%`)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+    
+    if (!error && data) {
+      setSearchResults(data);
+    }
+    setIsSearching(false);
+  };
+
+  const copyLocalPath = async () => {
+    if (!latestVideo) return;
+    const p = await getLocalVideoPath(latestVideo);
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(p).then(() => {
+        alert('Ruta local copiada: ' + p);
+      }).catch(() => {
+        alert('Error al copiar ruta: ' + p);
+      });
+    } else {
+      // Fallback para HTTP / red local sin contexto seguro (como 192.168.x.x)
+      const textArea = document.createElement("textarea");
+      textArea.value = p;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert('Ruta local copiada: ' + p);
+      } catch (err) {
+        alert('Error al copiar ruta manualmente. Cópiala desde aquí:\n' + p);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const handleRender = async (action: 'overwrite' | 'new_version', newName?: string) => {
+    if (!latestVideo) return;
+    setIsRendering(true);
+    setMessage(null);
+    try {
+      if (action === 'new_version') {
+        const updatedMetadata = {
+          ...(latestVideo.metadata || {}),
+          render_config: config,
+          ...(newName && { version_name: newName })
+        };
+        const updatePayload: any = { metadata: updatedMetadata };
+        if (newName) updatePayload.business_name = newName;
+        
+        const { error } = await supabase.from('video_queue').update(updatePayload).eq('id', latestVideo.id);
+        if (error) throw new Error('Error al guardar configuración: ' + error.message);
+        
+        if (newName) setLatestVideo((prev: any) => ({ ...prev, business_name: newName }));
+      }
+
+      const res = await fetch('/api/editor/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video: latestVideo, config, action })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al renderizar');
+      
+      setMessage({ type: 'success', text: `✅ Renderizado exitoso! URL: ${data.bunnyUrl || 'N/A'}` });
+      // Update local state if needed
+      setLatestVideo((prev: any) => ({ ...prev, bunny_url: data.bunnyUrl || prev.bunny_url }));
+    } catch (err: any) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Error en render: ' + err.message });
+    } finally {
+      setIsRendering(false);
+    }
+  };
+
+  useEffect(() => {
+  const loadData = async () => {
+    // 1. Cargar Config
+    const { data: configData, error: configError } = await supabase
       .from('settings')
       .select('config')
       .order('updated_at', { ascending: false })
       .limit(1)
       .single();
-    if (!error && data?.config) {
-      setConfig(data.config as VideoTemplateConfig);
+    if (!configError && configData?.config) {
+      setConfig(configData.config as VideoTemplateConfig);
+    }
+    
+    // 2. Cargar Último Video Renderizado o el específico del cliente
+    const params = new URLSearchParams(window.location.search);
+    const businessId = params.get('business_id');
+
+    let query = supabase
+      .from('video_queue')
+      .select('*')
+      .eq('status', 'completed');
+      
+    if (businessId) {
+      query = query.eq('lead_id', businessId);
+    }
+
+    const { data: videoData, error: videoError } = await query
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (!videoError && videoData) {
+      setLatestVideo(videoData);
+    }
+    setIsLoadingVideo(false);
+
+    try {
+      const templatesData = await getEditorTemplates();
+      if (templatesData) setTemplates(templatesData);
+    } catch (err) {
+      console.error('Error loading templates:', err);
     }
   };
-  loadConfig();
+  loadData();
 }, []);
 
+  interface EditorTemplate {
+    id: string;
+    nombre: string;
+    config: any;
+  }
+  const [templates, setTemplates] = useState<EditorTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [templateName, setTemplateName] = useState('Plantilla Google Reviews');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -109,20 +246,72 @@ export default function EditorClient() {
     dragOverItem.current = null;
   };
 
-  const handleSave = async () => {
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    if (!id) return;
+
+    const template = templates.find(t => t.id === id);
+    if (template && template.config) {
+      setConfig(template.config as VideoTemplateConfig);
+      setTemplateName(template.nombre);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) {
+      setMessage({ type: 'error', text: 'El nombre de la plantilla no puede estar vacío.' });
+      return;
+    }
+    
     setIsSaving(true);
     setMessage(null);
     try {
-      const { error } = await supabase.from('settings').upsert({
-        id: '00000000-0000-0000-0000-000000000001',
-        primary_color: config.primary_color,
-        font_family: config.font_family,
-        blur_level: config.blur_level,
-        config: config,
-        updated_at: new Date().toISOString(),
-      });
+      await saveEditorTemplate(templateName, config);
+      setMessage({ type: 'success', text: `✅ Plantilla "${templateName}" guardada correctamente.` });
+      
+      const templatesData = await getEditorTemplates();
+      if (templatesData) {
+        setTemplates(templatesData);
+        const newTemplate = templatesData.find(t => t.nombre === templateName);
+        if (newTemplate) setSelectedTemplateId(newTemplate.id);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setMessage({ type: 'error', text: e.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!latestVideo) {
+      setMessage({ type: 'error', text: 'No hay un video activo para guardar la configuración.' });
+      return;
+    }
+    
+    setIsSaving(true);
+    setMessage(null);
+    try {
+      // Reutilizamos la columna metadata (jsonb) para guardar render_config
+      const updatedMetadata = {
+        ...(latestVideo.metadata || {}),
+        render_config: config
+      };
+
+      const { error } = await supabase.from('video_queue').update({
+        metadata: updatedMetadata
+      }).eq('id', latestVideo.id);
+
       if (error) throw error;
-      setMessage({ type: 'success', text: '✅ Guardado. El Worker usará esta configuración.' });
+      
+      // Update local state to reflect the saved config
+      setLatestVideo({
+        ...latestVideo,
+        metadata: updatedMetadata
+      });
+
+      setMessage({ type: 'success', text: '✅ Guardado para este video. El Worker usará esta configuración.' });
     } catch (e: any) {
       console.error(e);
       setMessage({ type: 'error', text: e.message });
@@ -197,7 +386,34 @@ export default function EditorClient() {
             <>
               {/* Template name */}
               <Section title="Nombre de Plantilla" icon="📝">
-                <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <select 
+                    value={selectedTemplateId} 
+                    onChange={handleTemplateChange}
+                    style={{ ...inputStyle, flex: 1 }}
+                  >
+                    <option value="">-- Cargar plantilla guardada --</option>
+                    {templates.map(t => (
+                      <option key={t.id} value={t.id}>{t.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder="Nombre para guardar/sobreescribir" />
+                  <button 
+                    onClick={handleSaveTemplate}
+                    disabled={isSaving}
+                    style={{
+                      background: '#4285F4', color: 'white', border: 'none',
+                      borderRadius: '8px', padding: '0 16px', fontWeight: 500,
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
+                      opacity: isSaving ? 0.7 : 1, transition: 'background 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Guardar Plantilla
+                  </button>
+                </div>
               </Section>
 
               {/* ── COMPONENT STACK ── */}
@@ -381,21 +597,134 @@ export default function EditorClient() {
       {/* ════════ PLAYER AREA ════════ */}
       <div style={{
         flex: 1, background: '#121212',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '24px', overflow: 'hidden', position: 'relative',
       }}>
         <div style={{
           position: 'absolute', inset: 0, opacity: 0.05, pointerEvents: 'none',
           backgroundImage: 'radial-gradient(#888 1px, transparent 1px)', backgroundSize: '20px 20px',
         }} />
-        <div style={{
-          position: 'relative', height: 'calc(100vh - 100px)',
-          aspectRatio: '9/16', maxWidth: '100%',
-          borderRadius: '12px', overflow: 'hidden',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.6)', border: '1px solid #333',
-        }}>
-          <PlayerComponent config={config} />
-        </div>
+        
+        {isLoadingVideo ? (
+          <div style={{ zIndex: 1, color: '#9aa0a6', fontSize: '15px', background: '#1e1e1e', padding: '16px 24px', borderRadius: '8px', border: '1px solid #333' }}>
+            Cargando último video...
+          </div>
+        ) : !latestVideo ? (
+          <div style={{ zIndex: 1, color: '#e8eaed', fontSize: '15px', background: '#252525', padding: '16px 24px', borderRadius: '8px', border: '1px solid #333', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 8px', fontSize: '20px' }}>📭</p>
+            No hay videos "completed" en la cola aún.<br/>
+            Procesa uno primero para previsualizarlo.
+          </div>
+        ) : (
+          <>
+            {/* Barra de búsqueda y Controles */}
+            <div style={{ width: '100%', marginBottom: '16px', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              
+              {/* Buscador */}
+              <div style={{ display: 'flex', gap: '8px', position: 'relative' }}>
+                <input 
+                  type="text" 
+                  placeholder="Buscar video completado por nombre de negocio..." 
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  style={{ ...inputStyle, flex: 1, padding: '8px 12px' }}
+                />
+                {searchResults.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    background: '#252525', border: '1px solid #333', borderRadius: '8px',
+                    marginTop: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                  }}>
+                    {searchResults.map(res => (
+                      <div key={res.id} style={{
+                        padding: '10px 12px', borderBottom: '1px solid #333',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <span style={{ fontSize: '13px', color: '#e8eaed' }}>{res.business_name || res.id}</span>
+                        <button onClick={() => {
+                          setLatestVideo(res);
+                          if (res.metadata?.render_config) setConfig(res.metadata.render_config);
+                          setSearchResults([]);
+                          setSearchQuery('');
+                        }} style={{
+                          background: '#4285F4', color: 'white', border: 'none',
+                          padding: '4px 10px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                        }}>
+                          ✏️ Editar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Banner Info & Links */}
+              <div style={{ background: 'rgba(66, 133, 244, 0.1)', border: '1px solid #4285F4', color: '#8ab4f8', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🎥</span> Usando datos de: <strong>{latestVideo.business_name}</strong>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={copyLocalPath} style={{
+                    background: 'rgba(255,255,255,0.1)', border: 'none', color: '#e8eaed',
+                    padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer'
+                  }}>📁 Copiar Ruta</button>
+                  <Link href={`/dashboard/crm/${latestVideo.lead_id || latestVideo.raw_lead_id || latestVideo.id}`} target="_blank" style={{
+                    background: 'rgba(255,255,255,0.1)', border: 'none', color: '#e8eaed', textDecoration: 'none',
+                    padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center'
+                  }}>🔗 Ver en CRM</Link>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              position: 'relative', height: 'calc(100vh - 220px)',
+              aspectRatio: '9/16', maxWidth: '100%',
+              borderRadius: '12px', overflow: 'hidden',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.6)', border: '1px solid #333',
+            }}>
+              <PlayerComponent config={config} videoData={latestVideo} />
+            </div>
+
+            {/* Render Buttons */}
+            <div style={{ zIndex: 1, marginTop: '16px', display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => handleRender('overwrite')} 
+                disabled={isRendering || !latestVideo}
+                style={{
+                  background: (isRendering || !latestVideo) ? '#333' : '#EA4335', color: (isRendering || !latestVideo) ? '#666' : 'white',
+                  border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '13px',
+                  fontWeight: 500, cursor: (isRendering || !latestVideo) ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                  boxShadow: (isRendering || !latestVideo) ? 'none' : '0 2px 8px rgba(234, 67, 53, 0.4)'
+                }}>
+                {isRendering ? 'Renderizando...' : (!latestVideo ? '⚠️ Sin video base' : '⚠️ Renderizar')}
+              </button>
+              
+              <button 
+                onClick={() => {
+                  const currentConfigJSON = JSON.stringify(config);
+                  const savedConfigJSON = JSON.stringify(latestVideo?.metadata?.render_config || {});
+                  if (currentConfigJSON === savedConfigJSON) {
+                    alert('No hay cambios en la configuración. Genera cambios en el diseño antes de editar/generar una nueva versión.');
+                    return;
+                  }
+                  const newName = prompt('Ingresa un nombre para esta versión editada:', latestVideo.business_name);
+                  if (newName) {
+                    handleRender('new_version', newName);
+                  }
+                }} 
+                disabled={isRendering || !latestVideo}
+                style={{
+                  background: (isRendering || !latestVideo) ? '#333' : '#34A853', color: (isRendering || !latestVideo) ? '#666' : 'white',
+                  border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '13px',
+                  fontWeight: 500, cursor: (isRendering || !latestVideo) ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                  boxShadow: (isRendering || !latestVideo) ? 'none' : '0 2px 8px rgba(52, 168, 83, 0.4)'
+                }}>
+                {isRendering ? 'Renderizando...' : (!latestVideo ? '✨ Sin video base' : '✨ Editar')}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

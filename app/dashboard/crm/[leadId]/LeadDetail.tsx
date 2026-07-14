@@ -87,6 +87,8 @@ interface LeadDetailProps {
     video_queue?: VideoQueueItem[];
     message_override?: string | null;
     message_override_2?: string | null;
+    crm_status?: string | null;
+    pipeline_stage?: string | null;
   };
   initialOutreach: OutreachRecord[];
 }
@@ -102,6 +104,13 @@ function formatDateTime(dateStr: string) {
 export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const searchParams = useSearchParams();
   const [outreachList, setOutreachList] = useState<OutreachRecord[]>(initialOutreach);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset pagination to first page when new outreach is registered
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [outreachList.length]);
+
   const [isPending, startTransition] = useTransition();
   const [urlCopied, setUrlCopied] = useState(false);
 
@@ -160,6 +169,12 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
   const [editEmail, setEditEmail] = useState(lead.contact_data?.email || '');
   const [savingContact, setSavingContact] = useState(false);
 
+  // Deliverables management states
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [deliverableTitle, setDeliverableTitle] = useState('');
+  const [pasteUrl, setPasteUrl] = useState('');
+  const [deliverableType, setDeliverableType] = useState('document');
+
   // Find the primary outreach record (usually the latest one, or first WhatsApp one) to update notes and states
   const mainRecord = outreachList[outreachList.length - 1] || null;
 
@@ -172,12 +187,27 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
 
   // Compute stages for pipeline visualization
   const jobs = lead.video_queue || [];
-  const completedJob = jobs.find((j) => j.status === 'completed' && !j.defectuoso);
-  const waRecord = outreachList.find((o) => o.canal === 'whatsapp' && o.estado === 'contactado');
+  const completedJobs = jobs.filter((j) => j.status === 'completed');
+  completedJobs.sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime());
+  const completedJob = completedJobs.length > 0 ? completedJobs[0] : null;
+  
+  // Find any WhatsApp record indicating sent/received
+  const waRecord = outreachList.find(
+    (o) =>
+      o.canal === 'whatsapp' &&
+      (o.estado === 'contactado' ||
+        o.estado === 'contacto_1_enviado' ||
+        o.estado === 'mensaje_2_enviado' ||
+        o.estado === 'respondió')
+  );
+  
   const webRecord = outreachList.find((o) => o.canal === 'web');
   const emailRecord = outreachList.find((o) => o.canal === 'email');
   const clickRecord = outreachList.find((o) => o.notas && o.notas.toLowerCase().includes('clic'));
   const closedRecord = outreachList.find((o) => o.estado === 'cerrado');
+
+  // Lead is closed if there is a 'cerrado' log OR if lead fields state 'ganado' or 'cerrado'
+  const isClosed = !!closedRecord || lead.pipeline_stage === 'ganado' || lead.crm_status === 'cerrado';
 
   const stages = [
     { label: 'Video listo', completed: !!completedJob, date: completedJob?.updated_at || completedJob?.created_at || null },
@@ -185,7 +215,7 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     { label: 'Landing abierta', completed: !!webRecord, date: webRecord?.created_at || null },
     { label: 'Email dejado', completed: !!emailRecord, date: emailRecord?.created_at || null },
     { label: 'Clic WhatsApp', completed: !!clickRecord, date: clickRecord?.created_at || null },
-    { label: 'Cerrado', completed: !!closedRecord, date: closedRecord?.created_at || null },
+    { label: 'Cerrado', completed: isClosed, date: closedRecord?.created_at || (lead.pipeline_stage === 'ganado' || lead.crm_status === 'cerrado' ? lead.created_at : null) },
   ];
 
   // Highest stage for WhatsApp message logic
@@ -476,6 +506,126 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
     }
   };
 
+  const getDeliverableTypeByExtension = (ext: string): string => {
+    const e = ext.toLowerCase();
+    if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(e)) return 'video';
+    if (['pdf'].includes(e)) return 'pdf';
+    if (['xls', 'xlsx', 'csv'].includes(e)) return 'excel';
+    if (['doc', 'docx', 'txt'].includes(e)) return 'document';
+    return 'other';
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const fileExt = file.name.split('.').pop() || '';
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `${lead.id}/${Date.now()}_${cleanFileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('deliverables')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('deliverables')
+        .getPublicUrl(filePath);
+
+      const newDel = {
+        id: `del-${Date.now()}`,
+        name: deliverableTitle.trim() || file.name,
+        url: publicUrl,
+        type: getDeliverableTypeByExtension(fileExt),
+        created_at: new Date().toISOString()
+      };
+
+      const currentDeliverables = (contactData as any)?.deliverables || [];
+      const updatedDeliverables = [...currentDeliverables, newDel];
+
+      const updatedContact = {
+        ...(contactData || {}),
+        deliverables: updatedDeliverables
+      };
+
+      await updateLeadContactData(lead.id, updatedContact);
+      setContactData(updatedContact as any);
+      setDeliverableTitle('');
+      alert('Archivo entregable subido con éxito.');
+    } catch (err) {
+      console.error(err);
+      alert('Error subiendo entregable: ' + (err as Error).message);
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSavePasteUrl = async () => {
+    if (!pasteUrl.trim()) return;
+
+    try {
+      const newDel = {
+        id: `del-${Date.now()}`,
+        name: deliverableTitle.trim() || 'Enlace Entregable',
+        url: pasteUrl.trim(),
+        type: deliverableType,
+        created_at: new Date().toISOString()
+      };
+
+      const currentDeliverables = (contactData as any)?.deliverables || [];
+      const updatedDeliverables = [...currentDeliverables, newDel];
+
+      const updatedContact = {
+        ...(contactData || {}),
+        deliverables: updatedDeliverables
+      };
+
+      await updateLeadContactData(lead.id, updatedContact);
+      setContactData(updatedContact as any);
+      setDeliverableTitle('');
+      setPasteUrl('');
+      alert('Enlace entregable guardado con éxito.');
+    } catch (err) {
+      console.error(err);
+      alert('Error guardando entregable: ' + (err as Error).message);
+    }
+  };
+
+  const handleDeleteDeliverable = async (delId: string, fileUrl: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este entregable? El cliente ya no tendrá acceso.')) return;
+
+    try {
+      if (fileUrl.includes('/storage/v1/object/public/deliverables/')) {
+        const filePath = fileUrl.split('/public/deliverables/')[1];
+        if (filePath) {
+          await supabase.storage.from('deliverables').remove([filePath]);
+        }
+      }
+
+      const currentDeliverables = (contactData as any)?.deliverables || [];
+      const updatedDeliverables = currentDeliverables.filter((d: any) => d.id !== delId);
+
+      const updatedContact = {
+        ...(contactData || {}),
+        deliverables: updatedDeliverables
+      };
+
+      await updateLeadContactData(lead.id, updatedContact);
+      setContactData(updatedContact as any);
+      alert('Entregable eliminado con éxito.');
+    } catch (err) {
+      console.error(err);
+      alert('Error eliminando entregable: ' + (err as Error).message);
+    }
+  };
+
   const handleSaveContact = async () => {
     setSavingContact(true);
     try {
@@ -535,6 +685,18 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
 
         {/* Action button cluster */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {completedJob ? (
+            <Link
+              href={`/dashboard/editor?business_id=${lead.id}`}
+              style={{ background: '#34a853', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              ✏️ Editar video
+            </Link>
+          ) : (
+            <div style={{ background: '#2d2d2d', color: '#9aa0a6', border: '1px solid #444', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center' }}>
+              Este cliente no tiene video listo
+            </div>
+          )}
           {lead.slug && (
             <>
               <a
@@ -785,6 +947,139 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ENTREGABLES CARD */}
+          <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '14px', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 500, borderBottom: '1px solid #333', paddingBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>📦 Entregables y Archivos para Cliente</span>
+              <span style={{ fontSize: '10px', background: 'rgba(138, 180, 248, 0.1)', color: '#8ab4f8', padding: '2px 8px', borderRadius: '10px' }}>Web descargable</span>
+            </h3>
+
+            {/* List of deliverables */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              {((contactData as any)?.deliverables || []).map((del: any) => (
+                <div key={del.id} style={{ background: '#252525', border: '1px solid #333', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '20px' }}>
+                      {del.type === 'video' ? '🎬' : del.type === 'pdf' ? '📄' : del.type === 'excel' ? '📊' : del.type === 'invoice' ? '🧾' : '📁'}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#e8eaed' }}>{del.name}</div>
+                      <div style={{ fontSize: '10px', color: '#9aa0a6', marginTop: '2px' }}>
+                        Subido: {new Date(del.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a
+                      href={del.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ background: '#2d2d2d', border: '1px solid #444', color: '#8ab4f8', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      📥 Ver
+                    </a>
+                    <button
+                      onClick={() => handleDeleteDeliverable(del.id, del.url)}
+                      style={{ background: 'rgba(234, 67, 53, 0.1)', border: '1px solid rgba(234, 67, 53, 0.3)', color: '#ea4335', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      🗑️ Borrar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {(!(contactData as any)?.deliverables || (contactData as any).deliverables.length === 0) && (
+                <div style={{ padding: '16px', textAlign: 'center', color: '#666', border: '1px dashed #333', borderRadius: '8px', fontSize: '12px' }}>
+                  Aún no has agregado entregables para este cliente.
+                </div>
+              )}
+            </div>
+
+            {/* Form to add deliverable */}
+            <div style={{ background: '#222', borderRadius: '8px', padding: '12px', border: '1px solid #333' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '12px', color: '#e8eaed', fontWeight: 600 }}>Agregar Nuevo Entregable</h4>
+              
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', fontSize: '10px', color: '#9aa0a6', marginBottom: '4px' }}>Título del archivo</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Cotización Servicios Premium, Video Final"
+                  value={deliverableTitle}
+                  onChange={(e) => setDeliverableTitle(e.target.value)}
+                  style={{ width: '100%', background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}
+                />
+              </div>
+
+              {/* Tabs for Upload vs Link */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setPasteUrl(''); }}
+                  style={{ flex: 1, background: !pasteUrl ? 'rgba(138, 180, 248, 0.1)' : 'transparent', border: `1px solid ${!pasteUrl ? '#8ab4f8' : '#444'}`, color: !pasteUrl ? '#8ab4f8' : '#9aa0a6', padding: '6px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  📁 Subir Archivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPasteUrl('https://'); }}
+                  style={{ flex: 1, background: pasteUrl ? 'rgba(138, 180, 248, 0.1)' : 'transparent', border: `1px solid ${pasteUrl ? '#8ab4f8' : '#444'}`, color: pasteUrl ? '#8ab4f8' : '#9aa0a6', padding: '6px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  🔗 Pegar Enlace
+                </button>
+              </div>
+
+              {!pasteUrl ? (
+                <div>
+                  <input
+                    type="file"
+                    id="deliverable-file"
+                    disabled={uploadingFile}
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <label
+                    htmlFor="deliverable-file"
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', border: '2px dashed #444', borderRadius: '6px', cursor: uploadingFile ? 'not-allowed' : 'pointer', background: '#2a2a2a', transition: 'all 0.2s' }}
+                  >
+                    <span style={{ fontSize: '24px', marginBottom: '6px' }}>{uploadingFile ? '⏳' : '📤'}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 500, color: '#8ab4f8' }}>
+                      {uploadingFile ? 'Subiendo archivo...' : 'Selecciona un archivo desde tu PC'}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>PDF, Excel, Word, Imagen, Video (Max 50MB)</span>
+                  </label>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="https://drive.google.com/..."
+                    value={pasteUrl}
+                    onChange={(e) => setPasteUrl(e.target.value)}
+                    style={{ width: '100%', background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', outline: 'none' }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <select
+                      value={deliverableType}
+                      onChange={(e) => setDeliverableType(e.target.value)}
+                      style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '6px', padding: '6px 10px', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="document">📄 Documento (PDF/Word)</option>
+                      <option value="excel">📊 Planilla (Excel)</option>
+                      <option value="video">🎬 Video</option>
+                      <option value="invoice">🧾 Boleta/Factura</option>
+                      <option value="other">📁 Otro</option>
+                    </select>
+                    <button
+                      onClick={handleSavePasteUrl}
+                      style={{ flex: 1, background: '#34a853', border: 'none', color: 'white', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      💾 Guardar Enlace
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
@@ -1165,35 +1460,132 @@ export default function LeadDetail({ lead, initialOutreach }: LeadDetailProps) {
 
           {/* HISTORIAL OUTREACH */}
           <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '14px', padding: '20px' }}>
+            <style>{`
+              .crm-pagination-btn {
+                background: #2d2d2d;
+                border: 1px solid #444;
+                color: #e8eaed;
+                padding: 4px 10px;
+                font-size: 11.5px;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease-in-out;
+                min-width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .crm-pagination-btn:hover:not(:disabled) {
+                background: #3c3c3c;
+                border-color: #8ab4f8;
+                color: #fff;
+              }
+              .crm-pagination-btn:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+              }
+              .crm-pagination-btn-active {
+                background: #8ab4f8 !important;
+                color: #121212 !important;
+                border-color: #8ab4f8 !important;
+                font-weight: bold;
+              }
+            `}</style>
             <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 500, borderBottom: '1px solid #333', paddingBottom: '10px' }}>
               Historial de Interacciones (Outreach Logs)
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {outreachList.map((rec, i) => (
-                <div key={rec.id} style={{ background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: '8px', padding: '12px', fontSize: '12.5px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 600, color: rec.canal === 'whatsapp' ? '#4caf50' : '#8ab4f8' }}>
-                      {rec.canal === 'whatsapp' ? '💬 WhatsApp' : rec.canal === 'email' ? '📧 Email' : '🌐 Web'}
-                    </span>
-                    <span style={{ fontSize: '10.5px', color: '#9aa0a6', fontFamily: 'monospace' }}>
-                      {formatDateTime(rec.created_at)}
-                    </span>
-                  </div>
-                  <div>
-                    Estado: <span style={{ color: '#f4b400', fontWeight: 600 }}>{rec.estado}</span>
-                  </div>
-                  {rec.notas && (
-                    <div style={{ marginTop: '6px', color: '#bdc1c6', fontStyle: 'italic', borderLeft: '2px solid #555', paddingLeft: '8px' }}>
-                      {rec.notas}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {outreachList.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#666', border: '1px dashed #333', borderRadius: '8px', fontSize: '12px' }}>
-                  Sin interacciones registradas. ¡Envía tu primera propuesta!
-                </div>
-              )}
+              {(() => {
+                const itemsPerPage = 5;
+                const sortedOutreach = [...outreachList].sort(
+                  (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                );
+                const totalPages = Math.ceil(sortedOutreach.length / itemsPerPage);
+                const activePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+                const paginatedOutreach = sortedOutreach.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+
+                return (
+                  <>
+                    {paginatedOutreach.map((rec) => (
+                      <div key={rec.id} style={{ background: '#2d2d2d', border: '1px solid #3c3c3c', borderRadius: '8px', padding: '12px', fontSize: '12.5px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '6px' }}>
+                          {/* Ocultado temporalmente (todos son WhatsApp por ahora)
+                          <span style={{ fontWeight: 600, color: rec.canal === 'whatsapp' ? '#4caf50' : '#8ab4f8' }}>
+                            {rec.canal === 'whatsapp' ? '💬 WhatsApp' : rec.canal === 'email' ? '📧 Email' : rec.canal === 'web' ? '🌐 Web' : '🌐 ' + rec.canal}
+                          </span>
+                          */}
+                          <span style={{ fontSize: '10.5px', color: '#9aa0a6', fontFamily: 'monospace' }}>
+                            {formatDateTime(rec.created_at)}
+                          </span>
+                        </div>
+                        <div>
+                          Estado: <span style={{ color: '#f4b400', fontWeight: 600 }}>{rec.estado}</span>
+                        </div>
+                        {rec.notas && (
+                          <div style={{ marginTop: '6px', color: '#bdc1c6', fontStyle: 'italic', borderLeft: '2px solid #555', paddingLeft: '8px' }}>
+                            {rec.notas}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {sortedOutreach.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#666', border: '1px dashed #333', borderRadius: '8px', fontSize: '12px' }}>
+                        Sin interacciones registradas. ¡Envía tu primera propuesta!
+                      </div>
+                    )}
+
+                    {totalPages > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #333' }}>
+                        <span style={{ fontSize: '11px', color: '#9aa0a6' }}>
+                          Pág. {activePage} de {totalPages} ({sortedOutreach.length} logs)
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <button
+                            disabled={activePage === 1}
+                            onClick={() => setCurrentPage(activePage - 1)}
+                            className="crm-pagination-btn"
+                          >
+                            ‹
+                          </button>
+                          {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                            .filter((pageNum) => {
+                              return (
+                                pageNum === 1 ||
+                                pageNum === totalPages ||
+                                Math.abs(pageNum - activePage) <= 1
+                              );
+                            })
+                            .map((pageNum, index, arr) => {
+                              const prevPage = arr[index - 1];
+                              const showEllipsis = prevPage && pageNum - prevPage > 1;
+                              return (
+                                <React.Fragment key={pageNum}>
+                                  {showEllipsis && (
+                                    <span style={{ color: '#666', fontSize: '11px', padding: '0 4px' }}>...</span>
+                                  )}
+                                  <button
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`crm-pagination-btn ${activePage === pageNum ? 'crm-pagination-btn-active' : ''}`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+                          <button
+                            disabled={activePage === totalPages}
+                            onClick={() => setCurrentPage(activePage + 1)}
+                            className="crm-pagination-btn"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 

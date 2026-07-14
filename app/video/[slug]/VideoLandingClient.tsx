@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 interface VideoLandingClientProps {
   businessName: string;
@@ -8,6 +9,8 @@ interface VideoLandingClientProps {
   reviews: number;
   bunnyUrl: string | null;
   slug: string;
+  leadId: string;
+  contactData: any;
 }
 
 export default function VideoLandingClient({
@@ -16,10 +19,54 @@ export default function VideoLandingClient({
   reviews,
   bunnyUrl,
   slug,
+  leadId,
+  contactData,
 }: VideoLandingClientProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Track visit when the prospect loads the landing page
+  useEffect(() => {
+    const trackVisit = async () => {
+      const sessionKey = `tracked_visit_${leadId}`;
+      if (sessionStorage.getItem(sessionKey)) return;
+
+      try {
+        const { error } = await supabase
+          .from('outreach')
+          .insert({
+            lead_id: leadId,
+            canal: 'web',
+            estado: 'visitado',
+            notas: 'El prospecto abrió la página de video.'
+          });
+        
+        if (!error) {
+          sessionStorage.setItem(sessionKey, 'true');
+        }
+      } catch (err) {
+        console.error('Error tracking visit:', err);
+      }
+    };
+
+    if (leadId) {
+      trackVisit();
+    }
+  }, [leadId]);
+
+  // Generate deliverables array
+  const deliverables = [...(contactData?.deliverables || [])];
+  const hasVideoDeliverable = deliverables.some((d: any) => d.type === 'video');
+  if (bunnyUrl && !hasVideoDeliverable) {
+    deliverables.unshift({
+      id: 'del-video-primary',
+      name: 'Video de Reseñas (Google Maps)',
+      url: bunnyUrl,
+      type: 'video',
+      created_at: new Date().toISOString()
+    });
+  }
 
   // Generate stars
   const fullStars = Math.floor(rating);
@@ -385,6 +432,18 @@ export default function VideoLandingClient({
           fill: #fff;
         }
 
+        /* Deliverables Section */
+        .deliverable-item:hover {
+          background: rgba(255, 255, 255, 0.05) !important;
+          border-color: rgba(255, 255, 255, 0.1) !important;
+          transform: scale(1.01);
+        }
+        .download-btn-client:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.1);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
         /* Footer */
         .footer {
           width: 100%;
@@ -500,6 +559,74 @@ export default function VideoLandingClient({
             </div>
           )}
         </section>
+
+        {/* Deliverables Section */}
+        {deliverables.length > 0 && (
+          <section className="deliverables-section fade-in fade-in-delay-3" style={{ padding: '0 24px 48px', maxWidth: '680px', margin: '0 auto', width: '100%' }}>
+            <div className="deliverables-card" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '28px 24px', position: 'relative', zIndex: 10 }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 700, color: '#fff', textAlign: 'center' }}>
+                📦 Tus Documentos y Entregables
+              </h3>
+              <p style={{ margin: '0 0 24px', fontSize: '13px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: '1.5' }}>
+                Accede y descarga aquí tu video optimizado, cotizaciones y otros documentos de tu proyecto de forma directa.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {deliverables.map((del: any) => (
+                  <div
+                    key={del.id}
+                    className="deliverable-item"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: '12px',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      transition: 'all 0.2s ease-in-out',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <span style={{ fontSize: '24px' }}>
+                        {del.type === 'video' ? '🎬' : del.type === 'pdf' ? '📄' : del.type === 'excel' ? '📊' : del.type === 'invoice' ? '🧾' : '📁'}
+                      </span>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '13.5px', textAlign: 'left' }}>{del.name}</div>
+                        <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.3)', marginTop: '3px', textAlign: 'left' }}>
+                          Tipo: {del.type === 'video' ? 'Video MP4' : del.type === 'pdf' ? 'Documento PDF' : del.type === 'excel' ? 'Planilla de Datos' : del.type === 'invoice' ? 'Boleta/Factura' : 'Archivo'}
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href={del.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="download-btn-client"
+                      style={{
+                        background: del.type === 'video' ? '#34a853' : '#8ab4f8',
+                        color: del.type === 'video' ? '#fff' : '#121212',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Descargar 📥
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* CTA Section */}
         <section className="cta-section fade-in fade-in-delay-4">

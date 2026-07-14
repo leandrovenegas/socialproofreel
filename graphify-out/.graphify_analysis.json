@@ -1,0 +1,594 @@
+{
+  "communities": {
+    "0": [
+      "app_actions_settings",
+      "app_actions_settings_updatesettingsaction",
+      "app_dashboard_page",
+      "app_dashboard_page_dashboardpage",
+      "app_dashboard_page_quicklinks",
+      "app_dashboard_queuemonitor",
+      "app_dashboard_queuemonitor_queuemonitor",
+      "app_dashboard_queuemonitor_statusbadge",
+      "app_dashboard_settings_editorsidebar",
+      "app_dashboard_settings_editorsidebar_editorsidebar",
+      "app_dashboard_settings_page",
+      "app_dashboard_settings_page_settingspage",
+      "app_dashboard_settings_settingsclient",
+      "app_dashboard_settings_settingsclient_settingsclient",
+      "app_dashboard_settings_settingsclient_settingsclientprops",
+      "app_dashboard_settings_templatecontext",
+      "app_dashboard_settings_templatecontext_defaultconfig",
+      "app_dashboard_settings_templatecontext_templateconfig",
+      "app_dashboard_settings_templatecontext_templatecontext",
+      "app_dashboard_settings_templatecontext_templatecontexttype",
+      "app_dashboard_settings_templatecontext_templateprovider",
+      "app_dashboard_settings_templatecontext_usetemplate",
+      "app_dashboard_settings_videopreview",
+      "app_dashboard_settings_videopreview_videopreview",
+      "app_dashboard_settings_videotemplate",
+      "app_dashboard_settings_videotemplate_videotemplate",
+      "app_dashboard_settings_videotemplate_videotemplateprops",
+      "lib_types",
+      "lib_types_settings",
+      "lib_types_templateconfig",
+      "lib_types_videoqueue",
+      "lib_types_videoqueuestatus"
+    ],
+    "1": [
+      "app_api_enrich_lead_id_route",
+      "app_api_enrich_lead_id_route_fetchcontactdata",
+      "app_api_enrich_lead_id_route_post",
+      "app_dashboard_crm_leadid_page",
+      "app_dashboard_crm_leadid_page_leaddetailpage",
+      "app_dashboard_outreach_outreachclient",
+      "app_dashboard_outreach_outreachclient_estados",
+      "app_dashboard_outreach_outreachclient_lead",
+      "app_dashboard_outreach_outreachclient_outreachclient",
+      "app_dashboard_outreach_outreachclient_outreachrecord",
+      "app_dashboard_outreach_page",
+      "app_dashboard_outreach_page_outreachpage",
+      "app_dashboard_queue_page",
+      "app_dashboard_queue_page_queuepage",
+      "app_dashboard_queue_queueclient",
+      "app_dashboard_queue_queueclient_formatdate",
+      "app_dashboard_queue_queueclient_queueclient",
+      "app_dashboard_queue_queueclient_queueclientprops",
+      "app_dashboard_queue_queueclient_queueitem",
+      "app_dashboard_queue_queueclient_rawleaditem",
+      "app_dashboard_queue_queueclient_stats",
+      "app_dashboard_queue_queueclient_status_options",
+      "app_dashboard_rubros_page",
+      "app_dashboard_rubros_page_rubrospage",
+      "app_dashboard_rubros_rubrosclient",
+      "app_dashboard_rubros_rubrosclient_lead",
+      "app_dashboard_rubros_rubrosclient_rubro",
+      "app_dashboard_rubros_rubrosclient_rubrosclient",
+      "app_dashboard_rubros_rubrosclient_videojob",
+      "lib_supabase_client",
+      "lib_supabase_client_supabase",
+      "lib_supabase_index"
+    ],
+    "2": [
+      "ref",
+      "ref_dom",
+      "ref_dom_iterable",
+      "ref_esnext",
+      "ref_mts",
+      "ref_next_dev_types_ts",
+      "ref_next_env_d_ts",
+      "ref_next_types_ts",
+      "ref_node_modules",
+      "ref_ts",
+      "ref_tsx",
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowjs",
+      "tsconfig_compileroptions_esmoduleinterop",
+      "tsconfig_compileroptions_incremental",
+      "tsconfig_compileroptions_isolatedmodules",
+      "tsconfig_compileroptions_jsx",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_plugins",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_exclude",
+      "tsconfig_include",
+      "tsconfig_paths"
+    ],
+    "3": [
+      "eslint",
+      "eslint_config_next",
+      "package",
+      "package_devdependencies",
+      "package_devdependencies_eslint",
+      "package_devdependencies_eslint_config_next",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_postcss",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_react",
+      "package_devdependencies_types_react_dom",
+      "package_devdependencies_typescript",
+      "package_name",
+      "package_packagemanager",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_lint",
+      "package_scripts_start",
+      "package_version",
+      "tailwindcss",
+      "tailwindcss_postcss",
+      "types_node",
+      "types_react",
+      "types_react_dom",
+      "typescript"
+    ],
+    "4": [
+      "date_fns",
+      "lightningcss_win32_x64_msvc",
+      "next",
+      "package_dependencies",
+      "package_dependencies_date_fns",
+      "package_dependencies_lightningcss_win32_x64_msvc",
+      "package_dependencies_next",
+      "package_dependencies_react",
+      "package_dependencies_react_dom",
+      "package_dependencies_remotion",
+      "package_dependencies_remotion_player",
+      "package_dependencies_supabase_supabase_js",
+      "package_dependencies_ws",
+      "react",
+      "react_dom",
+      "remotion",
+      "remotion_player",
+      "supabase_supabase_js",
+      "ws"
+    ],
+    "5": [
+      "app_dashboard_crm_bot_actions",
+      "app_dashboard_crm_bot_actions_getbotstatsandhistory",
+      "app_dashboard_crm_bot_actions_getbotstatus",
+      "app_dashboard_crm_bot_actions_getchilemidnight",
+      "app_dashboard_crm_bot_actions_getservicesupabase",
+      "app_dashboard_crm_bot_actions_outreachhistoryitem",
+      "app_dashboard_crm_bot_actions_requestbotrestart",
+      "app_dashboard_crm_bot_actions_togglescheduler",
+      "app_dashboard_crm_bot_botdashboardclient",
+      "app_dashboard_crm_bot_botdashboardclient_botdashboardclient",
+      "app_dashboard_crm_bot_botdashboardclient_botdashboardclientprops",
+      "app_dashboard_crm_bot_botdashboardclient_botstats",
+      "app_dashboard_crm_bot_botdashboardclient_botstatus",
+      "app_dashboard_crm_bot_page",
+      "app_dashboard_crm_bot_page_botdashboardpage"
+    ],
+    "6": [
+      "app_dashboard_crm_crm_loader",
+      "app_dashboard_crm_crm_loader_fetchcrmdata",
+      "app_dashboard_crm_crmclient",
+      "app_dashboard_crm_crmclient_crmclient",
+      "app_dashboard_crm_crmclient_crmclientprops",
+      "app_dashboard_crm_crmclient_rawleaditem",
+      "app_dashboard_crm_crmclient_stats",
+      "app_dashboard_crm_crmclient_whatsappoutreachbutton",
+      "app_dashboard_crm_crmclient_whatsappoutreachbuttonprops",
+      "app_dashboard_crm_descartados_page",
+      "app_dashboard_crm_descartados_page_descartadospage",
+      "app_dashboard_crm_page",
+      "app_dashboard_crm_page_crmpage",
+      "app_dashboard_crm_pipeline_page",
+      "app_dashboard_crm_pipeline_page_pipelinepage"
+    ],
+    "7": [
+      "app_dashboard_editor_editorclient",
+      "app_dashboard_editor_editorclient_default_business",
+      "app_dashboard_editor_editorclient_default_effects",
+      "app_dashboard_editor_editorclient_default_order",
+      "app_dashboard_editor_editorclient_editorclient",
+      "app_dashboard_editor_editorclient_hintstyle",
+      "app_dashboard_editor_editorclient_inputstyle",
+      "app_dashboard_editor_editorclient_playercomponent",
+      "app_dashboard_editor_editorclient_section",
+      "app_dashboard_editor_editorclient_slider",
+      "app_dashboard_editor_editorclient_togglerow",
+      "app_dashboard_editor_page",
+      "app_dashboard_editor_page_editorpage",
+      "app_dashboard_editor_page_metadata"
+    ],
+    "8": [
+      "app_dashboard_crm_queue_actions",
+      "app_dashboard_crm_queue_actions_getgeneraltemplates",
+      "app_dashboard_crm_queue_actions_getservicesupabase",
+      "app_dashboard_crm_queue_actions_savegeneraltemplates",
+      "app_dashboard_crm_queue_actions_savequeue",
+      "app_dashboard_crm_queue_page",
+      "app_dashboard_crm_queue_page_availableleadsfilter",
+      "app_dashboard_crm_queue_page_queuepage",
+      "app_dashboard_crm_queue_queueclient",
+      "app_dashboard_crm_queue_queueclient_leaditem",
+      "app_dashboard_crm_queue_queueclient_queueclient",
+      "app_dashboard_crm_queue_queueclient_queueclientprops"
+    ],
+    "9": [
+      "app_actions_leads",
+      "app_actions_leads_addleadaction",
+      "app_actions_leads_generatevideotaskaction",
+      "app_dashboard_leads_leadform",
+      "app_dashboard_leads_leadform_leadform",
+      "app_dashboard_leads_page",
+      "app_dashboard_leads_page_leadspage",
+      "app_dashboard_leads_triggerbutton",
+      "app_dashboard_leads_triggerbutton_triggerbutton",
+      "lib_types_lead"
+    ],
+    "10": [
+      "app_dashboard_crm_leadid_leaddetail",
+      "app_dashboard_crm_leadid_leaddetail_default_templates",
+      "app_dashboard_crm_leadid_leaddetail_estados",
+      "app_dashboard_crm_leadid_leaddetail_formatdatetime",
+      "app_dashboard_crm_leadid_leaddetail_leaddetail",
+      "app_dashboard_crm_leadid_leaddetail_leaddetailprops",
+      "app_dashboard_crm_leadid_leaddetail_messagetemplate",
+      "app_dashboard_crm_leadid_leaddetail_outreachrecord",
+      "app_dashboard_crm_leadid_leaddetail_replaceplaceholders",
+      "app_dashboard_crm_leadid_leaddetail_videoqueueitem"
+    ],
+    "11": [
+      "render_remotion",
+      "render_remotion_get_image_base64",
+      "render_remotion_get_latest_config",
+      "render_remotion_normalize_supabase_config",
+      "render_remotion_rationale_1",
+      "render_remotion_rationale_150",
+      "render_remotion_rationale_33",
+      "render_remotion_rationale_51",
+      "render_remotion_rationale_98",
+      "render_remotion_render_lead_remotion"
+    ],
+    "12": [
+      "components_remotion_videotemplate",
+      "components_remotion_videotemplate_businessnameconfig",
+      "components_remotion_videotemplate_componentitem",
+      "components_remotion_videotemplate_effectsconfig",
+      "components_remotion_videotemplate_reviewitem",
+      "components_remotion_videotemplate_videotemplate",
+      "components_remotion_videotemplate_videotemplateconfig",
+      "components_remotion_videotemplate_videotemplatemetadata",
+      "components_remotion_videotemplate_videotemplateprops"
+    ],
+    "13": [
+      "app_video_slug_page",
+      "app_video_slug_page_generatemetadata",
+      "app_video_slug_page_getleadbyslug",
+      "app_video_slug_page_videopage",
+      "app_video_slug_page_videopageprops",
+      "app_video_slug_videolandingclient",
+      "app_video_slug_videolandingclient_videolandingclient",
+      "app_video_slug_videolandingclient_videolandingclientprops"
+    ],
+    "14": [
+      "app_dashboard_crm_actions",
+      "app_dashboard_crm_actions_getservicesupabase",
+      "app_dashboard_crm_actions_updateleadcontactdata",
+      "app_dashboard_crm_actions_updateleadmessageoverride",
+      "app_dashboard_crm_actions_updateleadscore",
+      "app_dashboard_crm_actions_updateleadstatus"
+    ],
+    "15": [
+      "app_dashboard_dashboardnav",
+      "app_dashboard_dashboardnav_dashboardnav",
+      "app_dashboard_dashboardnav_navitems",
+      "app_dashboard_layout",
+      "app_dashboard_layout_dashboardlayout",
+      "app_dashboard_layout_metadata"
+    ],
+    "16": [
+      "scripts_search_twenty",
+      "scripts_search_twenty_crmresults",
+      "scripts_search_twenty_fs",
+      "scripts_search_twenty_path",
+      "scripts_search_twenty_searchdir",
+      "scripts_search_twenty_workerresults"
+    ],
+    "17": [
+      "app_dashboard_editor_actions",
+      "app_dashboard_editor_actions_geteditortemplates",
+      "app_dashboard_editor_actions_getlocalvideopath",
+      "app_dashboard_editor_actions_getservicesupabase",
+      "app_dashboard_editor_actions_saveeditortemplate"
+    ],
+    "18": [
+      "app_layout",
+      "app_layout_geistmono",
+      "app_layout_geistsans",
+      "app_layout_metadata",
+      "app_layout_rootlayout"
+    ],
+    "19": [
+      "scripts_search_both",
+      "scripts_search_both_fs",
+      "scripts_search_both_path",
+      "scripts_search_both_results",
+      "scripts_search_both_searchdir"
+    ],
+    "20": [
+      "scripts_upload_raw_leads",
+      "scripts_upload_raw_leads_dirname",
+      "scripts_upload_raw_leads_filename",
+      "scripts_upload_raw_leads_supabase",
+      "scripts_upload_raw_leads_uploadleads"
+    ],
+    "21": [
+      "app_api_editor_render_route",
+      "app_api_editor_render_route_execasync",
+      "app_api_editor_render_route_post",
+      "app_api_editor_render_route_supabase"
+    ],
+    "22": [
+      "app_dashboard_editor_playerpreview",
+      "app_dashboard_editor_playerpreview_playerpreview",
+      "app_dashboard_editor_playerpreview_playerpreviewprops",
+      "app_dashboard_editor_playerpreview_samplemetadata"
+    ],
+    "23": [
+      "app_dashboard_system_logs_page",
+      "app_dashboard_system_logs_page_logentry",
+      "app_dashboard_system_logs_page_modulestatus",
+      "app_dashboard_system_logs_page_systemlogspage"
+    ],
+    "24": [
+      "check_rls",
+      "check_rls_createclient",
+      "check_rls_supabase",
+      "check_rls_test"
+    ],
+    "25": [
+      "migrate_mitigation",
+      "migrate_mitigation_createclient",
+      "migrate_mitigation_runmigration",
+      "migrate_mitigation_supabase"
+    ],
+    "26": [
+      "test_query",
+      "test_query_createclient",
+      "test_query_supabase",
+      "test_query_test"
+    ],
+    "27": [
+      "app_api_jobs_reset_route",
+      "app_api_jobs_reset_route_post",
+      "app_api_jobs_reset_route_supabase"
+    ],
+    "28": [
+      "app_api_system_route",
+      "app_api_system_route_execasync",
+      "app_api_system_route_post"
+    ],
+    "29": [
+      "app_dashboard_system_logs_operationalcontrols",
+      "app_dashboard_system_logs_operationalcontrols_operationalcontrols"
+    ],
+    "30": [
+      "app_page",
+      "app_page_home"
+    ],
+    "31": [
+      "app_video_slug_not_found",
+      "app_video_slug_not_found_videonotfound"
+    ],
+    "32": [
+      "eslint_config",
+      "eslint_config_eslintconfig"
+    ],
+    "33": [
+      "next_config",
+      "next_config_nextconfig"
+    ],
+    "34": [
+      "postcss_config",
+      "postcss_config_config"
+    ],
+    "35": [
+      "scripts_list_tables",
+      "scripts_list_tables_listtables"
+    ],
+    "36": [
+      "ecosystem_config"
+    ],
+    "37": [
+      "test_query_python"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1028225806451613,
+    "1": 0.0907258064516129,
+    "2": 0.06451612903225806,
+    "3": 0.07407407407407407,
+    "4": 0.10526315789473684,
+    "5": 0.3238095238095238,
+    "6": 0.20952380952380953,
+    "7": 0.14285714285714285,
+    "8": 0.3333333333333333,
+    "9": 0.3333333333333333,
+    "10": 0.24444444444444444,
+    "11": 0.26666666666666666,
+    "12": 0.2222222222222222,
+    "13": 0.32142857142857145,
+    "14": 0.6,
+    "15": 0.3333333333333333,
+    "16": 0.3333333333333333,
+    "17": 0.6,
+    "18": 0.4,
+    "19": 0.4,
+    "20": 0.4,
+    "21": 0.6666666666666666,
+    "22": 0.5,
+    "23": 0.5,
+    "24": 0.5,
+    "25": 0.5,
+    "26": 0.5,
+    "27": 0.6666666666666666,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0
+  },
+  "gods": [
+    {
+      "id": "lib_supabase_client_supabase",
+      "label": "supabase",
+      "degree": 16
+    },
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 16
+    },
+    {
+      "id": "app_dashboard_crm_bot_actions_getbotstatsandhistory",
+      "label": "getBotStatsAndHistory()",
+      "degree": 7
+    },
+    {
+      "id": "tsconfig_include",
+      "label": "include",
+      "degree": 7
+    },
+    {
+      "id": "app_dashboard_crm_crm_loader_fetchcrmdata",
+      "label": "fetchCrmData()",
+      "degree": 7
+    },
+    {
+      "id": "app_dashboard_crm_bot_actions_getbotstatus",
+      "label": "getBotStatus()",
+      "degree": 6
+    },
+    {
+      "id": "app_dashboard_crm_actions_getservicesupabase",
+      "label": "getServiceSupabase()",
+      "degree": 5
+    },
+    {
+      "id": "app_dashboard_crm_bot_botdashboardclient_botdashboardclient",
+      "label": "BotDashboardClient()",
+      "degree": 5
+    },
+    {
+      "id": "app_dashboard_crm_bot_actions_getservicesupabase",
+      "label": "getServiceSupabase()",
+      "degree": 5
+    },
+    {
+      "id": "app_dashboard_settings_templatecontext_usetemplate",
+      "label": "useTemplate()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "SettingsClientProps",
+      "target": "Settings",
+      "source_files": [
+        "app/dashboard/settings/SettingsClient.tsx",
+        "lib/types.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories; peripheral node `SettingsClientProps` unexpectedly reaches hub `Settings`"
+    },
+    {
+      "source": "DescartadosPage()",
+      "target": "fetchCrmData()",
+      "source_files": [
+        "app/dashboard/crm/descartados/page.tsx",
+        "app/dashboard/crm/crm-loader.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `DescartadosPage()` unexpectedly reaches hub `fetchCrmData()`"
+    },
+    {
+      "source": "CrmPage()",
+      "target": "fetchCrmData()",
+      "source_files": [
+        "app/dashboard/crm/page.tsx",
+        "app/dashboard/crm/crm-loader.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `CrmPage()` unexpectedly reaches hub `fetchCrmData()`"
+    },
+    {
+      "source": "PipelinePage()",
+      "target": "fetchCrmData()",
+      "source_files": [
+        "app/dashboard/crm/pipeline/page.tsx",
+        "app/dashboard/crm/crm-loader.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `PipelinePage()` unexpectedly reaches hub `fetchCrmData()`"
+    },
+    {
+      "source": "LeadForm()",
+      "target": "addLeadAction()",
+      "source_files": [
+        "app/dashboard/leads/LeadForm.tsx",
+        "app/actions/leads.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "cross-file semantic connection"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `supabase` connect `supabase` to `SettingsClient.tsx`, `page.tsx`, `page.tsx`?",
+      "why": "High betweenness centrality (0.042) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `dependencies` connect `dependencies` to `devDependencies`?",
+      "why": "High betweenness centrality (0.012) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `BotStatus`, `BotDashboardClientProps`, `LeadItem` to the rest of the system?",
+      "why": "132 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `SettingsClient.tsx` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1028225806451613 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `supabase` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.0907258064516129 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `compilerOptions` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `devDependencies` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

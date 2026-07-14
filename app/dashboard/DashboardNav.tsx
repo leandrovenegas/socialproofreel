@@ -11,6 +11,7 @@ const navItems = [
   { href: '/dashboard/outreach', label: 'Outreach', icon: '💬' },
   { href: '/dashboard/rubros', label: 'Rubros', icon: '🏷️' },
   { href: '/dashboard/queue', label: 'Cola', icon: '📋' },
+  { href: '/dashboard/system-logs', label: 'System Logs', icon: '🖥️' },
   { href: '/dashboard/settings', label: 'Ajustes', icon: '⚙️' },
 ];
 

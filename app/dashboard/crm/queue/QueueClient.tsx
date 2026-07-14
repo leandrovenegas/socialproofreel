@@ -250,8 +250,7 @@ export default function QueueClient({ initialAvailable, initialQueue, initialGen
   };
 
   return (
-    <div style={{ padding: '24px 40px', color: '#e8eaed', background: '#121212', minHeight: '100vh', fontFamily: "'Roboto', sans-serif" }}>
-      
+    <div style={{ padding: '24px 40px', color: '#e8eaed', background: '#121212', minHeight: '100vh', fontFamily: "'Roboto', sans-serif", boxSizing: 'border-box', maxWidth: '100%', overflowX: 'hidden' }}>      
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -346,7 +345,7 @@ export default function QueueClient({ initialAvailable, initialQueue, initialGen
           Se enviarán estos dos mensajes en secuencia. Usa <strong>[]</strong> o <strong>()</strong> para el nombre de negocio, y <strong>{'{slug}'}</strong> para la URL de video del lead.
         </p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', alignItems: 'flex-start' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#9aa0a6', marginBottom: '6px', fontWeight: 600 }}>
               Mensaje 1 (Caption de la Imagen / Primer Envío)
@@ -397,7 +396,7 @@ export default function QueueClient({ initialAvailable, initialQueue, initialGen
       </div>
 
       {/* TWO COLUMNS LAYOUT */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 450px), 1fr))', gap: '32px' }}>
         
         {/* COLUMN LEFT: AVAILABLE LEADS */}
         <div style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 430px)', minHeight: '550px' }}>

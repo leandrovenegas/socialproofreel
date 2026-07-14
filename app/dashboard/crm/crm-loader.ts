@@ -4,11 +4,12 @@ const PAGE_SIZE = 50;
 
 export async function fetchCrmData(
   status: 'sin_contactar' | 'contactado' | 'descartado',
-  searchParams: { page?: string; rubro?: string; filter?: string }
+  searchParams: { page?: string; rubro?: string; filter?: string; search?: string }
 ) {
   const page = Math.max(1, parseInt(searchParams.page || '1'));
   const rubro = searchParams.rubro || 'all';
   const filter = searchParams.filter || 'all';
+  const search = searchParams.search || '';
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -44,6 +45,12 @@ export async function fetchCrmData(
 
   if (rubro !== 'all') {
     query = query.eq('rubro', rubro);
+  }
+
+  if (search.trim()) {
+    const cleanSearch = search.trim().replace(/"/g, '');
+    const searchTerm = `"%${cleanSearch}%"`;
+    query = query.or(`raw_data->>name.ilike.${searchTerm},contact_data->>phone_international.ilike.${searchTerm},contact_data->>email.ilike.${searchTerm}`);
   }
 
   // Order by score DESC, and fallback to created_at DESC
@@ -126,6 +133,12 @@ export async function fetchCrmData(
       q = q.eq('raw_leads.rubro', rubro);
     }
 
+    if (search.trim()) {
+      const cleanSearch = search.trim().replace(/"/g, '');
+      const searchTerm = `"%${cleanSearch}%"`;
+      q = q.or(`raw_data->>name.ilike.${searchTerm},contact_data->>phone_international.ilike.${searchTerm},contact_data->>email.ilike.${searchTerm}`, { foreignTable: 'raw_leads' });
+    }
+
     const { count: cCount, error: countErr } = await q;
     if (countErr) {
       console.error(`Error counting ${filterName}:`, countErr);
@@ -143,6 +156,11 @@ export async function fetchCrmData(
   }
   if (rubro !== 'all') {
     totalCountQuery = totalCountQuery.eq('rubro', rubro);
+  }
+  if (search.trim()) {
+    const cleanSearch = search.trim().replace(/"/g, '');
+    const searchTerm = `"%${cleanSearch}%"`;
+    totalCountQuery = totalCountQuery.or(`raw_data->>name.ilike.${searchTerm},contact_data->>phone_international.ilike.${searchTerm},contact_data->>email.ilike.${searchTerm}`);
   }
   const { count: totalLeadsCount } = await totalCountQuery;
 

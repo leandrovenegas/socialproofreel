@@ -28,7 +28,7 @@ interface RawLeadItem {
   video_queue?: { status: string; defectuoso: boolean; bunny_url?: string | null }[];
   outreach?: { canal: string; estado: string; notas: string | null; created_at: string }[];
   score?: number;
-  crm_status?: 'sin_contactar' | 'contactado' | 'descartado';
+  crm_status?: string | null;
   pipeline_stage?: 'prospecto' | 'propuesta' | 'cierre' | 'ganado' | 'perdido';
 }
 
@@ -182,14 +182,19 @@ export default function CrmClient({
   const [leads, setLeads] = useState<RawLeadItem[]>(initialLeads);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterVideo, setFilterVideo] = useState<'all' | 'ready' | 'pending'>((searchParams.get('filterVideo') as any) || 'all');
+  const [searchVal, setSearchVal] = useState(searchParams.get('search') || '');
 
   useEffect(() => {
     setLeads(initialLeads);
   }, [initialLeads]);
 
+  useEffect(() => {
+    setSearchVal(searchParams.get('search') || '');
+  }, [searchParams]);
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  const navigate = (params: { page?: number; rubro?: string; filter?: string }) => {
+  const navigate = (params: { page?: number; rubro?: string; filter?: string; search?: string }) => {
     const p = new URLSearchParams();
     p.set('page', String(params.page ?? currentPage));
     p.set('rubro', params.rubro ?? currentRubro);
@@ -198,6 +203,12 @@ export default function CrmClient({
     if (f !== 'all') {
       p.set('filter', f);
     }
+
+    const s = params.search !== undefined ? params.search : (searchParams.get('search') || '');
+    if (s.trim()) {
+      p.set('search', s.trim());
+    }
+
     startTransition(() => router.push(`${pathname}?${p.toString()}`));
   };
 
@@ -257,11 +268,18 @@ export default function CrmClient({
     const outreach = lead.outreach || [];
 
     const videoReady = jobs.some((j) => j.status === 'completed' && !j.defectuoso);
-    const waSent = outreach.some((o) => o.canal === 'whatsapp' && o.estado === 'contactado');
+    const waSent = outreach.some(
+      (o) =>
+        o.canal === 'whatsapp' &&
+        (o.estado === 'contactado' ||
+          o.estado === 'contacto_1_enviado' ||
+          o.estado === 'mensaje_2_enviado' ||
+          o.estado === 'respondió')
+    );
     const landingOpened = outreach.some((o) => o.canal === 'web');
     const emailLeft = outreach.some((o) => o.canal === 'email');
     const clickedWa = outreach.some((o) => o.notas && o.notas.toLowerCase().includes('clic'));
-    const closed = outreach.some((o) => o.estado === 'cerrado');
+    const closed = outreach.some((o) => o.estado === 'cerrado') || lead.pipeline_stage === 'ganado' || lead.crm_status === 'cerrado';
 
     const steps = [videoReady, waSent, landingOpened, emailLeft, clickedWa, closed];
     
@@ -564,12 +582,82 @@ export default function CrmClient({
 
       {/* FILTER BAR */}
       <div style={{ display: 'flex', gap: '20px', background: '#1e1e1e', border: '1px solid #333', borderRadius: '12px', padding: '14px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+        
+        {/* BUSCADOR GLOBAL */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1', minWidth: '320px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#9aa0a6' }}>Buscar:</span>
+          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+            <input
+              type="text"
+              placeholder="🔍 Buscar por nombre, teléfono o email..."
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  navigate({ search: searchVal, page: 1 });
+                }
+              }}
+              style={{
+                flex: '1',
+                background: '#2d2d2d',
+                border: '1px solid #444',
+                color: '#e8eaed',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={() => navigate({ search: searchVal, page: 1 })}
+              style={{
+                background: '#34a853',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#2c8c46'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#34a853'}
+            >
+              Buscar
+            </button>
+            {searchParams.get('search') && (
+              <button
+                onClick={() => {
+                  setSearchVal('');
+                  navigate({ search: '', page: 1 });
+                }}
+                style={{
+                  background: '#ea4335',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#d33828'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#ea4335'}
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '13px', fontWeight: 500, color: '#9aa0a6' }}>Filtrar por Rubro:</span>
           <select
             value={currentRubro}
             onChange={(e) => navigate({ rubro: e.target.value, page: 1 })}
-            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '200px' }}
+            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '180px' }}
           >
             <option value="all">Todos los Rubros</option>
             {rubros.map((r) => (
@@ -585,7 +673,7 @@ export default function CrmClient({
           <select
             value={filterVideo}
             onChange={(e) => setFilterVideo(e.target.value as any)}
-            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '200px' }}
+            style={{ background: '#2d2d2d', border: '1px solid #444', color: '#e8eaed', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', cursor: 'pointer', minWidth: '180px' }}
           >
             <option value="all">Todos los Videos</option>
             <option value="ready">Solo Videos Listos ✅</option>

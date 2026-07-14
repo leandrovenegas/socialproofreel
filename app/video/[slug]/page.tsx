@@ -62,6 +62,8 @@ export default async function VideoPage({ params }: VideoPageProps) {
       reviews={reviews}
       bunnyUrl={bunnyUrl}
       slug={resolvedParams.slug}
+      leadId={lead.id}
+      contactData={lead.contact_data}
     />
   );
 }

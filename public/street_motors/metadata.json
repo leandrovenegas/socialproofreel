@@ -1,0 +1,51 @@
+{
+    "business_id": "8a34b488c4a9dbd9263af8f8bf6c00df",
+    "business_name": "Street Motors Servicio Automotriz PSA Peugeot Citroën",
+    "overall_rating": 4.5,
+    "address": "José Miguel Carrera 99, 9580000 Melipilla, Región Metropolitana, Chile",
+    "place_id": "ChIJMSWGfvJVYpYRxNW1TUMoQYE",
+    "status": "ready_for_render",
+    "background_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\background_0.jpg",
+    "backgrounds": [
+        "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\background_0.jpg",
+        "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\background_1.jpg",
+        "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\background_2.jpg"
+    ],
+    "reviews": [
+        {
+            "reviewer_name": "Ricardo Araneda",
+            "review_text": "Excelente atención. Me solucionaron el problema rápidamente. Quedé muy impresionado y contento.",
+            "rating": 5,
+            "avatar_url": "https://lh3.googleusercontent.com/a-/ALV-UjVhdX6ZX2Z4LV26jfZKq_vz3cmB-cgBQfsu1L-DHDNYwaR2pNwi=s128-c0x00000000-cc-rp-mo",
+            "avatar_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\avatar_0.jpg"
+        },
+        {
+            "reviewer_name": "Luis Ramirez",
+            "review_text": "Excelente servicio. 100% recomendable.",
+            "rating": 5,
+            "avatar_url": "https://lh3.googleusercontent.com/a-/ALV-UjVStUG1XhIlKGueYPXmFt6MPZs4hsStIrwtuQIghlURg_UWJDXR=s128-c0x00000000-cc-rp-mo-ba3",
+            "avatar_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\avatar_1.jpg"
+        },
+        {
+            "reviewer_name": "Pablo Herrada",
+            "review_text": "Excelente servicio, muy amables y dispuestos a resolver cualquier duda. Sinceros y te explican claramente lo que tu vehículo tiene o necesita. 1000% recomendables!!!",
+            "rating": 5,
+            "avatar_url": "https://lh3.googleusercontent.com/a-/ALV-UjWGQW1E6a7YHFVG_LHUCBLLUvjVIf9UoJPfUF6V6wOjD4iuFsg9=s128-c0x00000000-cc-rp-mo-ba3",
+            "avatar_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\avatar_2.jpg"
+        },
+        {
+            "reviewer_name": "Juan Amestica",
+            "review_text": "Excelente servicio y muy buenos precios",
+            "rating": 5,
+            "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocIvCRJQZefoaRn3YkemfuDjPwFkNcAx4cN85ZyGO_zltmup2w=s128-c0x00000000-cc-rp-mo",
+            "avatar_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\avatar_3.jpg"
+        },
+        {
+            "reviewer_name": "Alejandro Toledo",
+            "review_text": "Excelente lugar y servicio! Muy profesionales",
+            "rating": 5,
+            "avatar_url": "https://lh3.googleusercontent.com/a-/ALV-UjXKXjwMaGJsh0TeGgSc5Z4H8DRzhf5mTWFgqMaUiDHUgrnYn3Y=s128-c0x00000000-cc-rp-mo-ba3",
+            "avatar_local_path": "\\\\192.168.1.18\\Vicente\\proyects\\SocialProofREEL-Worker\\videos_locales\\8a34b488c4a9dbd9263af8f8bf6c00df\\avatar_4.jpg"
+        }
+    ]
+}
